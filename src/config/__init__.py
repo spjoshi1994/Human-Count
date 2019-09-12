@@ -1,0 +1,2 @@
+#from kitti_model_config import kitti_model_config
+from .kitti_squeezeDet_config import kitti_squeezeDet_config

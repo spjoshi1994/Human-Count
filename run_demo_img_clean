@@ -1,0 +1,6 @@
+rm ./data/test/img_out/*
+python ./src/demo.py --mode=image \
+                     --checkpoint=./logs/humancnt/train/model.ckpt-88500 \
+		     --input_path="../data/humancnt/test/img/*" \
+		     --out_dir=../data/humancnt/test/img_out/ \
+		     --demo_net=squeezeDet
