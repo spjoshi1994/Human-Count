@@ -11,6 +11,7 @@ from datetime import datetime
 import os.path
 import sys
 import time
+import getopt
 
 import numpy as np
 from six.moves import xrange
@@ -32,7 +33,7 @@ tf.app.flags.DEFINE_string('image_set', 'train',
 tf.app.flags.DEFINE_string('year', '2007',
                             """VOC challenge year. 2007 or 2012"""
                             """Only used for Pascal VOC dataset""")
-tf.app.flags.DEFINE_string('train_dir', '/tmp/logs/humandet/train',
+tf.app.flags.DEFINE_string('train_dir', '/tmp/logs/humancnt/train',
                             """Directory where to write event logs """
                             """and checkpoint.""")
 tf.app.flags.DEFINE_integer('max_steps', 1000000,
@@ -48,17 +49,16 @@ tf.app.flags.DEFINE_integer('checkpoint_step', 1000,
 tf.app.flags.DEFINE_string('gpu', '0', """gpu id.""")
 
 
-def _draw_box(file_name, im, box_list, label_list, color=(128,0,128), cdict=None, form='center', scale=1):
+def _draw_box(im, box_list, label_list, color=(128,0,128), cdict=None, form='center', scale=1):
   assert form == 'center' or form == 'diagonal', \
       'bounding box format not accepted: {}.'.format(form)
-  f = open(file_name[:-3]+'txt', 'w')
+
   for bbox, label in zip(box_list, label_list):
 
     if form == 'center':
       bbox = bbox_transform(bbox)
 
     xmin, ymin, xmax, ymax = [int(b)*scale for b in bbox]
-    f.write('Person 0 0 '+str(label.split(':')[1])+' '+str(xmin)+' '+str(ymin)+' '+str(xmax)+' '+str(ymax)+' 0 0 0 0 0 0 0\n')
 
     l = label.split(':')[0]
     if cdict and l in cdict:
@@ -71,7 +71,6 @@ def _draw_box(file_name, im, box_list, label_list, color=(128,0,128), cdict=None
     # draw label
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(im, label, (max(1, xmin-10), ymax+10), font, 0.3, c, 1) #<--------------------
-  f.close()
 
 def _viz_prediction_result(model, images, bboxes, labels, batch_det_bbox,
                            batch_det_class, batch_det_prob):
