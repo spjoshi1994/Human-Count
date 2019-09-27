@@ -378,11 +378,12 @@ for txt_file in ground_truth_files_list:
     already_seen_classes = []
     for line in lines_list:
         try:
+            print(line)
             if "difficult" in line:
                     class_name, _, _, _, left, top, right, bottom, _difficult, _, _, _, _, _, _ = line.split()
                     is_difficult = True
             else:
-                    class_name, _, _, _, left, top, right, bottom, _, _, _, _, _, _, _ = line.split()
+                    class_name, _, _, _, left, top, right, bottom = line.split()
         except ValueError:
             error_msg = "Error: File " + txt_file + " in the wrong format.\n"
             error_msg += " Expected: <class_name> <left> <top> <right> <bottom> ['difficult']\n"

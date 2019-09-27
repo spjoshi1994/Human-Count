@@ -6,7 +6,6 @@ import cv2
 import os 
 import numpy as np
 import subprocess
-from six.moves import xrange
 
 from dataset.imdb import imdb
 from utils.util import bbox_transform_inv, batch_iou
@@ -16,10 +15,10 @@ class kitti(imdb):
     imdb.__init__(self, 'kitti_'+image_set, mc)
     self._image_set = image_set
     self._data_root_path = data_path
-    self._image_path = os.path.join(self._data_root_path, 'training', 'image_2')
-    self._label_path = os.path.join(self._data_root_path, 'training', 'label_2')
+    self._image_path = os.path.join(self._data_root_path, 'training', 'images')
+    self._label_path = os.path.join(self._data_root_path, 'training', 'labels')
     self._classes = self.mc.CLASS_NAMES
-    self._class_to_idx = dict(zip(self.classes, xrange(self.num_classes)))
+    self._class_to_idx = dict(zip(self.classes, range(self.num_classes)))
 
     # a list of string indices of images in the directory
     self._image_idx = self._load_image_set_idx() 
@@ -82,14 +81,14 @@ class kitti(imdb):
           cls = self._class_to_idx[obj[0].lower().strip()] # person (14) -> class 0
         except:
           continue
-        
+
         num_person = num_person + 1
         x, y, w, h = float(obj[4]), float(obj[5]), float(obj[6]), float(obj[7])
         bboxes.append([x, y, w, h, cls])
 
       assert len(bboxes) > 0, 'empty box image'
       if num_person > max_person:
-	      max_person = num_person
+        max_person = num_person
       idx2annotation[index] = bboxes
 
     print('max person:', max_person)

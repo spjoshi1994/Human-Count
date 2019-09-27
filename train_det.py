@@ -58,7 +58,7 @@ def _draw_box(file_name, im, box_list, label_list, color=(128,0,128), cdict=None
       bbox = bbox_transform(bbox)
 
     xmin, ymin, xmax, ymax = [int(b)*scale for b in bbox]
-    f.write('Person 0 0 '+str(label.split(':')[1])+' '+str(xmin)+' '+str(ymin)+' '+str(xmax)+' '+str(ymax)+' 0 0 0 0 0 0 0\n')
+    f.write('Person 0 0 0 '+str(xmin)+' '+str(ymin)+' '+str(xmax)+' '+str(ymax)+' 0 0 0 0 0 0 0\n')
 
     l = label.split(':')[0]
     if cdict and l in cdict:
@@ -111,13 +111,29 @@ def train():
 
   with tf.Graph().as_default():
 
-    assert FLAGS.net == 'squeezeDet', \
+    assert FLAGS.net == 'vgg16' or FLAGS.net == 'resnet50' \
+        or FLAGS.net == 'squeezeDet' or FLAGS.net == 'squeezeDet+', \
         'Selected neural net architecture not supported: {}'.format(FLAGS.net)
-    if FLAGS.net == 'squeezeDet':
+    if FLAGS.net == 'vgg16':
+      mc = kitti_vgg16_config()
+      mc.IS_TRAINING = True
+      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+      model = VGG16ConvDet(mc)
+    elif FLAGS.net == 'resnet50':
+      mc = kitti_res50_config()
+      mc.IS_TRAINING = True
+      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+      model = ResNet50ConvDet(mc)
+    elif FLAGS.net == 'squeezeDet':
       mc = kitti_squeezeDet_config()
       mc.IS_TRAINING = True
       mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
       model = SqueezeDet(mc)
+    elif FLAGS.net == 'squeezeDet+':
+      mc = kitti_squeezeDetPlus_config()
+      mc.IS_TRAINING = True
+      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+      model = SqueezeDetPlus(mc)
 
     imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
 
@@ -150,7 +166,7 @@ def train():
     def _load_data(load_to_placeholder=True):
       # read batch input
       image_per_batch, label_per_batch, box_delta_per_batch, aidx_per_batch, \
-          bbox_per_batch = imdb.read_batch()
+          bbox_per_batch, image_per_batch_viz = imdb.read_batch()
 
       label_indices, bbox_indices, box_delta_values, mask_indices, box_values, \
           = [], [], [], [], []
@@ -208,19 +224,18 @@ def train():
               [1.0]*len(label_indices)),
       }
 
-      return feed_dict, image_per_batch, label_per_batch, bbox_per_batch
+      return feed_dict, image_per_batch, label_per_batch, bbox_per_batch, image_per_batch_viz
 
     def _enqueue(sess, coord):
       try:
         while not coord.should_stop():
-          feed_dict, _, _, _ = _load_data()
+          feed_dict, _, _, _, _ = _load_data()
           sess.run(model.enqueue_op, feed_dict=feed_dict)
           if mc.DEBUG_MODE:
             print ("added to the queue")
         if mc.DEBUG_MODE:
           print ("Finished enqueue")
-      #except Exception, e:
-      except getopt.GetoptError as e:
+      except Exception as e:
         coord.request_stop(e)
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
@@ -273,7 +288,7 @@ def train():
       start_time = time.time()
 
       if step % FLAGS.summary_step == 0:
-        feed_dict, image_per_batch, label_per_batch, bbox_per_batch = \
+        feed_dict, image_per_batch, label_per_batch, bbox_per_batch, image_per_batch_viz = \
             _load_data(load_to_placeholder=False)
         op_list = [
             model.train_op, model.loss, summary_op, model.det_boxes,
@@ -284,11 +299,13 @@ def train():
             conf_loss, bbox_loss, class_loss = sess.run(
                 op_list, feed_dict=feed_dict)
 
+	#image_per_batch_rgb = np.int_(np.array(image_per_batch)*128)
         _viz_prediction_result(
-            model, image_per_batch, bbox_per_batch, label_per_batch, det_boxes,
+            model, image_per_batch_viz, bbox_per_batch, label_per_batch, det_boxes,
             det_class, det_probs)
-        image_per_batch_rgb = image_per_batch
-        image_per_batch_rgb = bgr_to_rgb(image_per_batch_rgb)
+	#image_per_batch_rgb = [x * 128 for x in image_per_batch] # MUL 128 to each element in the list
+        #print(image_per_batch_rgb)
+        image_per_batch_rgb = bgr_to_rgb(image_per_batch_viz)
         viz_summary = sess.run(
             model.viz_op, feed_dict={model.image_to_show: image_per_batch_rgb})
 
@@ -304,7 +321,7 @@ def train():
               [model.train_op, model.loss, model.conf_loss, model.bbox_loss,
                model.class_loss], options=run_options)
         else:
-          feed_dict, _, _, _ = _load_data(load_to_placeholder=False)
+          feed_dict, _, _, _, _ = _load_data(load_to_placeholder=False)
           _, loss_value, conf_loss, bbox_loss, class_loss = sess.run(
               [model.train_op, model.loss, model.conf_loss, model.bbox_loss,
                model.class_loss], feed_dict=feed_dict)

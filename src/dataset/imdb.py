@@ -132,6 +132,7 @@ class imdb(object):
         self._cur_idx += mc.BATCH_SIZE
 
     image_per_batch = []
+    image_per_batch_viz = []
     label_per_batch = []
     bbox_per_batch  = []
     delta_per_batch = []
@@ -166,10 +167,10 @@ class imdb(object):
       # load annotations
       label_per_batch.append([b[4] for b in self._rois[idx][:]])
       gt_bbox = np.array([[(b[0]+b[2])/2, (b[1]+b[3])/2, b[2]-b[0], b[3]-b[1]] for b in self._rois[idx][:]])
-      assert np.any(gt_bbox[:,0] > 0), 'less than 0 gt_bbox[0]'
-      assert np.any(gt_bbox[:,1] > 0), 'less than 0 gt_bbox[1]'
-      assert np.any(gt_bbox[:,2] > 0), 'less than 0 gt_bbox[2]'
-      assert np.any(gt_bbox[:,3] > 0), 'less than 0 gt_bbox[3]'
+      assert np.all(gt_bbox[:,0]) > 0, 'less than 0 gt_bbox[0]'
+      assert np.all(gt_bbox[:,1]) > 0, 'less than 0 gt_bbox[1]'
+      assert np.all(gt_bbox[:,2]) > 0, 'less than 0 gt_bbox[2]'
+      assert np.all(gt_bbox[:,3]) > 0, 'less than 0 gt_bbox[3]'
 
       if mc.DATA_AUGMENTATION:
         # Flip image with 50% probability
@@ -179,8 +180,9 @@ class imdb(object):
 
 
       # scale image
-      im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
+      #im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
       image_per_batch.append(im)
+      image_per_batch_viz.append(im*128.0)
 
       # scale annotation
       x_scale = mc.IMAGE_WIDTH/orig_w
@@ -249,7 +251,7 @@ class imdb(object):
       print ('number of objects with 0 iou: {}'.format(num_zero_iou_obj))
 
     return image_per_batch, label_per_batch, delta_per_batch, \
-        aidx_per_batch, bbox_per_batch
+        aidx_per_batch, bbox_per_batch, image_per_batch_viz
 
   def evaluate_detections(self):
     raise NotImplementedError

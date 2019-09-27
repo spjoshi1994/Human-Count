@@ -2,9 +2,9 @@
 
 export GPUID=1
 export NET="squeezeDet"
-export TRAIN_DIR="./logs/humancnt/"
+export TRAIN_DIR="./logs"
 
-export TRAIN_DATA_DIR="../data/humancnt"
+export TRAIN_DATA_DIR="/data/humancnt/"
 
 if [ $# -eq 0 ]
 then
@@ -73,10 +73,12 @@ esac
 
 python ./src/train.py \
   --dataset=KITTI \
+  --pretrained_model_path=$PRETRAINED_MODEL_PATH \
   --data_path=$TRAIN_DATA_DIR \
   --image_set=train \
   --train_dir="$TRAIN_DIR/train" \
   --net=$NET \
   --summary_step=100 \
   --checkpoint_step=500 \
-  --max_steps=250000
+  --max_steps=250000 \
+  --gpu=$GPUID
