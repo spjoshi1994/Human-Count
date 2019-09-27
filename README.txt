@@ -49,12 +49,12 @@ Follow the main step 1 to build the docker image
 	For Linux:
 	----------
 	  - $cd Human-Count
-	  - $sudo docker run --rm -it -p 8888:8888 -p 6006:6006 -v <path to shared folder>:<path to shared folder> -v ~/.Xauthority:/root/.Xauthority:rw -e DISPLAY -e QT_X11_NO_MITSHM=1 --net=host human_count
+	  - $sudo docker run --rm -it -v <path to shared folder>:<path to shared folder> --net=host human_count
 	For Windows:
 	------------
 	   - Open the Docker Quickstart terminal.
            - $cd Human-Count
-           - $docker run --rm -it -p 8888:8888 -p 6006:6006 -v <path to shared folder>:<path to shared folder> --net=host human_count
+           - $docker run --rm -it -v <path to shared folder>:<path to shared folder> --net=host human_count
 	  
 2. Trigger training:
     - Using Docker shell
