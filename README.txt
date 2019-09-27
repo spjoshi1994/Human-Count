@@ -6,12 +6,18 @@ To build docker image: (This will take around 30-40 minutes)
   For Linux:
   ----------
      - Open terminal
-     - cd ecp5_humancnt_training
-     - sudo docker build -t human_count .
+     - cd Human-Count
+     - With GPU
+       --------
+	     - sudo docker build -f ./Dockerfile_GPU -t human_count .
+     - Without GPU
+       -----------
+	     - sudo docker build -t human_count .
+
   For Windows:
   ------------
      - Open Docker Quickstart terminal
-     - cd ecp5_humancnt_training
+     - cd Human-Count
      - docker build -t human_count .
 	
 
@@ -42,31 +48,17 @@ The shared folder should contain:
 Follow the main step 1 to build the docker image
 	For Linux:
 	----------
-	  - $cd ecp5_humancnt_training
-	  - $python input.py
-		arguments:
-		    - shared folder(mentioned in above step) 
-		    - Docker image name(human_count) that has been built.
-	  - Docker shell will open from the script.
+	  - $cd Human-Count
+	  - $sudo docker run --rm -it -p 8888:8888 -p 6006:6006 -v <path to shared folder>:<path to shared folder> -v ~/.Xauthority:/root/.Xauthority:rw -e DISPLAY -e QT_X11_NO_MITSHM=1 --net=host human_count
 	For Windows:
 	------------
 	   - Open the Docker Quickstart terminal.
-		- Make sure that Xlaunch is installed to use display in docker. If it is not installed, please refer "installdocker.txt"
-           - $cd ecp5_humancnt_training
-	   - $export DISPLAY=<Machine IP address>:0.0 #Same as mentioned in link: https://dev.to/darksmile92/run-gui-app-in-linux-docker-container-on-windows-host-4kde 
-           - $docker run --rm -it -p 8888:8888 -p 6006:6006 -v <path to shared folder>:<path to shared folder> -e DISPLAY=$DISPLAY --net=host human_count
+           - $cd Human-Count
+           - $docker run --rm -it -p 8888:8888 -p 6006:6006 -v <path to shared folder>:<path to shared folder> --net=host human_count
 	  
-2. There are two ways one can trigger training:
-    1. Using Jupyter notebook GUI
-	- To use GUI based training run command prompted in the docker shell to lauch jupyter notebook
-        - For linux, jupyter notebook will run at "http://localhost:8888" and tensorboard will run at "http://localhost:6006" in the host browser.
-        - For windows, jupyter notebook will run at "http://192.168.99.100:8888" and tensorboard will run at "http://192.168.99.100:6006" in the host browser. 192.168.99.100 is docker-machine default ip. Use command "docker-machine ip default" to get it.
-	- Token id should be given which is available in the jupyter notebook link.
-	- Open train.ipynb file
-	- After notebook is opened, click "Kernel-> Restart & Run All" option from menubar  to load the GUI
-	- The final .pb is copied to shared_folder/train_logs to access it from host machine. After that it can be used in SensAI tool.
-
-    2. Using Docker shell
+2. Trigger training:
+    - Using Docker shell
+      ------------------
 	- $python src/train.py --dataset 'KITTI' --net 'squeezeDet' --data_path <dataset_dir> --train_dir <train_logs_dir> --image_set 'train' --summary_step 100 --max_steps 250000 --checkpoint_step 500
         - $python src/genpb.py --ckpt_dir <train_logs_dir>
 	- $tensorboard --logdir=<train_logs_dir>
