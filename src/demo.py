@@ -328,7 +328,7 @@ def image_demo():
 
         # Draw boxes
         print('# of final boxes=', len(keep_idx))
-        _draw_box(
+        _draw_box(f,
             #im_gray, final_boxes,
             org_im, final_boxes,
             [mc.CLASS_NAMES[idx]+': (%.2f)'% prob \
