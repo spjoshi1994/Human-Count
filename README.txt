@@ -49,19 +49,24 @@ Follow the main step 1 to build the docker image
 	For Linux:
 	----------
 	  - $cd Human-Count
-	  - $sudo docker run --rm -it -v <path to shared folder>:<path to shared folder> --net=host human_count
+	  - With GPU:
+	    --------
+		  - $sudo docker run --rm -it -p 6006:6006 -v <path to shared folder>:<path to shared folder> --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools --net=host human_count
+          - Without GPU:
+	    -----------
+		  - $sudo docker run --rm -it -p 6006:6006 -v <path to shared folder>:<path to shared folder> --net=host human_count
 	For Windows:
 	------------
 	   - Open the Docker Quickstart terminal.
            - $cd Human-Count
-           - $docker run --rm -it -v <path to shared folder>:<path to shared folder> --net=host human_count
+           - $docker run --rm -it -p 6006:6006 -v <path to shared folder>:<path to shared folder> --net=host human_count
 	  
 2. Trigger training:
     - Using Docker shell
       ------------------
 	- $python src/train.py --dataset 'KITTI' --net 'squeezeDet' --data_path <dataset_dir> --train_dir <train_logs_dir> --image_set 'train' --summary_step 100 --max_steps 250000 --checkpoint_step 500
         - $python src/genpb.py --ckpt_dir <train_logs_dir>
-	- $tensorboard --logdir=<train_logs_dir>
+	- $tensorboard --logdir=<train_logs_dir> (Open link in host's browser Linux: http://localhost:6006 and Windows: http://192.168.99.100:6006)
 	- To generate .pb file from latest checkpoint:
 		- ckpt = tf.train.latest_checkpoint(<train_logs_dir>)
 		- $rm -rf model; mkdir model
