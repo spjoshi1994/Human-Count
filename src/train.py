@@ -232,7 +232,7 @@ def train():
             print ("added to the queue")
         if mc.DEBUG_MODE:
           print ("Finished enqueue")
-      except Exception (e):
+      except Exception as e:
         coord.request_stop(e)
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
@@ -252,6 +252,7 @@ def train():
         sess.run(init)
 
     summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
+    tf.train.write_graph(sess.graph_def, FLAGS.train_dir, "humancnt.pbtxt", as_text=True)
 
     coord = tf.train.Coordinator()
 
@@ -259,7 +260,6 @@ def train():
       enq_threads = []
       for _ in range(mc.NUM_THREAD):
         enq_thread = threading.Thread(target=_enqueue, args=[sess, coord])
-        enq_thread.daemon = True
         # enq_thread.isDaemon()
         enq_thread.start()
         enq_threads.append(enq_thread)
@@ -285,9 +285,11 @@ def train():
             model.det_probs, model.det_class, model.conf_loss,
             model.bbox_loss, model.class_loss
         ]
+        #feed_dict['model.zero_amt']=20
         _, loss_value, summary_str, det_boxes, det_probs, det_class, \
             conf_loss, bbox_loss, class_loss = sess.run(
                 op_list, feed_dict=feed_dict)
+                #op_list, feed_dict={feed_dict, model.zero_amt: 20})
 
 	#image_per_batch_rgb = np.int_(np.array(image_per_batch)*128)
         _viz_prediction_result(
@@ -311,10 +313,12 @@ def train():
               [model.train_op, model.loss, model.conf_loss, model.bbox_loss,
                model.class_loss], options=run_options)
         else:
+          #feed_dict['model.zero_amt']=20
           feed_dict, _, _, _, _ = _load_data(load_to_placeholder=False)
           _, loss_value, conf_loss, bbox_loss, class_loss = sess.run(
               [model.train_op, model.loss, model.conf_loss, model.bbox_loss,
                model.class_loss], feed_dict=feed_dict)
+
 
       duration = time.time() - start_time
 

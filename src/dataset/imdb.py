@@ -108,11 +108,11 @@ class imdb(object):
     Returns:
       image_per_batch: images. Shape: batch_size x width x height x [b, g, r]
       label_per_batch: labels. Shape: batch_size x object_num
-      delta_per_batch: bounding box deltas. Shape: batch_size x object_num x 
+      delta_per_batch: bounding box deltas. Shape: batch_size x object_num x
           [dx ,dy, dw, dh]
       aidx_per_batch: index of anchors that are responsible for prediction.
           Shape: batch_size x object_num
-      bbox_per_batch: scaled bounding boxes. Shape: batch_size x object_num x 
+      bbox_per_batch: scaled bounding boxes. Shape: batch_size x object_num x
           [cx, cy, w, h]
     """
     mc = self.mc
@@ -146,7 +146,7 @@ class imdb(object):
 
     for idx in batch_idx:
       # load the image
-      im = cv2.imread(self._image_path_at(idx))
+      im = cv2.imread(self._image_path_at(idx), cv2.IMREAD_UNCHANGED)
       if im is None:
         print('failed file read:'+self._image_path_at(idx))
 
@@ -167,10 +167,12 @@ class imdb(object):
       # load annotations
       label_per_batch.append([b[4] for b in self._rois[idx][:]])
       gt_bbox = np.array([[(b[0]+b[2])/2, (b[1]+b[3])/2, b[2]-b[0], b[3]-b[1]] for b in self._rois[idx][:]])
+
       assert np.all(gt_bbox[:,0]) > 0, 'less than 0 gt_bbox[0]'
       assert np.all(gt_bbox[:,1]) > 0, 'less than 0 gt_bbox[1]'
       assert np.all(gt_bbox[:,2]) > 0, 'less than 0 gt_bbox[2]'
       assert np.all(gt_bbox[:,3]) > 0, 'less than 0 gt_bbox[3]'
+
 
       if mc.DATA_AUGMENTATION:
         # Flip image with 50% probability
@@ -180,7 +182,7 @@ class imdb(object):
 
 
       # scale image
-      #im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
+      im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
       image_per_batch.append(im)
       image_per_batch_viz.append(im*128.0)
 
@@ -190,8 +192,6 @@ class imdb(object):
       gt_bbox[:, 0::2] = gt_bbox[:, 0::2]*x_scale
       gt_bbox[:, 1::2] = gt_bbox[:, 1::2]*y_scale
       bbox_per_batch.append(gt_bbox)
-
-
 
       aidx_per_image, delta_per_image = [], []
       aidx_set = set()
@@ -216,7 +216,7 @@ class imdb(object):
               num_objects += 1
             break
 
-        if aidx == len(mc.ANCHOR_BOX): 
+        if aidx == len(mc.ANCHOR_BOX):
           # even the largeset available overlap is 0, thus, choose one with the
           # smallest square distance
           dist = np.sum(np.square(gt_bbox[i] - mc.ANCHOR_BOX), axis=1)
@@ -272,14 +272,14 @@ class imdb(object):
       error_type = obj[1]
       if error_type not in dets_per_type:
         dets_per_type[error_type] = [{
-            'im_idx':obj[0], 
+            'im_idx':obj[0],
             'bbox':[float(obj[2]), float(obj[3]), float(obj[4]), float(obj[5])],
             'class':obj[6],
             'score': float(obj[7])
         }]
       else:
         dets_per_type[error_type].append({
-            'im_idx':obj[0], 
+            'im_idx':obj[0],
             'bbox':[float(obj[2]), float(obj[3]), float(obj[4]), float(obj[5])],
             'class':obj[6],
             'score': float(obj[7])
@@ -300,7 +300,7 @@ class imdb(object):
             os.path.join(image_dir, det['im_idx']+image_format))
         draw = ImageDraw.Draw(im)
         draw.rectangle(det['bbox'], outline=COLOR)
-        draw.text((det['bbox'][0], det['bbox'][1]), 
+        draw.text((det['bbox'][0], det['bbox'][1]),
                   '{:s} ({:.2f})'.format(det['class'], det['score']),
                   fill=COLOR)
         out_im_path = os.path.join(det_im_dir, str(i)+image_format)
