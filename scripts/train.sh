@@ -1,10 +1,11 @@
 #!/bin/bash
 
-export GPUID=1
+export GPUID=0
 export NET="squeezeDet"
-export TRAIN_DIR="./logs"
+export TRAIN_DIR="./logs/humancnt/"
+export IMAGE_SET="train_128x128"
 
-export TRAIN_DATA_DIR="./data/humancnt/"
+export TRAIN_DATA_DIR="./data/humancnt"
 
 if [ $# -eq 0 ]
 then
@@ -71,14 +72,16 @@ case "$NET" in
 esac
 
 
-python ./src/train.py \
+python3 ./src/train.py \
   --dataset=KITTI \
   --pretrained_model_path=$PRETRAINED_MODEL_PATH \
   --data_path=$TRAIN_DATA_DIR \
-  --image_set=train \
+  --image_set=$IMAGE_SET \
   --train_dir="$TRAIN_DIR/train" \
   --net=$NET \
+  --max_steps=250000 \
   --summary_step=100 \
   --checkpoint_step=500 \
-  --max_steps=250000 \
   --gpu=$GPUID
+
+#  --max_steps=900000 \

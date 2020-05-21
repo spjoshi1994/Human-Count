@@ -114,7 +114,8 @@ class ModelSkeleton:
                 [mc.ANCHORS, 1],
                 [mc.ANCHORS, 4],
                 [mc.ANCHORS, 4],
-                [mc.ANCHORS, mc.CLASSES]],
+                [mc.ANCHORS, mc.CLASSES]
+                ],
     )
 
     self.enqueue_op = self.FIFOQueue.enqueue_many(
@@ -150,82 +151,40 @@ class ModelSkeleton:
     with tf.variable_scope('interpret_output') as scope:
       preds = self.preds
 
-      # multiclass harness uses conf, class, and box order, while single class harness uses class, conf, and box order
-      #
-      use_multiclass_harness = True 
+      # probability
+      num_class_probs = mc.ANCHOR_PER_GRID*mc.CLASSES
+      print ('ANCHOR_PER_GRID:', mc.ANCHOR_PER_GRID)
+      print ('CLASSES:', mc.CLASSES)
+      print ('preds2:', preds[:, :, :, :num_class_probs])
+      print ('ANCHORS:', mc.ANCHORS)
 
-      if use_multiclass_harness:
-          print ('ANCHOR_PER_GRID:', mc.ANCHOR_PER_GRID)
-          print ('CLASSES:', mc.CLASSES)
-          print ('ANCHORS:', mc.ANCHORS)
-
-          # confidence
-          num_confidence_scores = mc.ANCHOR_PER_GRID
-          self.pred_conf = tf.sigmoid(
+      self.pred_class_probs = tf.reshape(
+          tf.nn.softmax(
               tf.reshape(
-                  preds[:, :, :, :num_confidence_scores],
-                  [mc.BATCH_SIZE, mc.ANCHORS]
-              ),
-              name='pred_confidence_score'
-          )
+                  preds[:, :, :, :num_class_probs],
+                  [-1, mc.CLASSES]
+              )
+          ),
+          [mc.BATCH_SIZE, mc.ANCHORS, mc.CLASSES],
+          name='pred_class_probs'
+      )
+      
+      # confidence
+      num_confidence_scores = mc.ANCHOR_PER_GRID+num_class_probs
+      self.pred_conf = tf.sigmoid(
+          tf.reshape(
+              preds[:, :, :, num_class_probs:num_confidence_scores],
+              [mc.BATCH_SIZE, mc.ANCHORS]
+          ),
+          name='pred_confidence_score'
+      )
 
-          # probability
-          num_class_probs = mc.ANCHOR_PER_GRID*mc.CLASSES+num_confidence_scores
-
-          self.pred_class_probs = tf.reshape(
-              tf.nn.softmax(
-                  tf.reshape(
-                      preds[:, :, :, num_confidence_scores:num_class_probs],
-                      [-1, mc.CLASSES]
-                  )
-              ),
-              [mc.BATCH_SIZE, mc.ANCHORS, mc.CLASSES],
-              name='pred_class_probs'
-          )
-          
-          # bbox_delta
-          self.pred_box_delta = tf.reshape(
-              preds[:, :, :, num_class_probs:],
-              [mc.BATCH_SIZE, mc.ANCHORS, 4],
-              name='bbox_delta'
-          )
-
-
-      else: # single class harness
-          # probability
-          num_class_probs = mc.ANCHOR_PER_GRID*mc.CLASSES
-          print ('ANCHOR_PER_GRID:', mc.ANCHOR_PER_GRID)
-          print ('CLASSES:', mc.CLASSES)
-          print ('preds2:', preds[:, :, :, :num_class_probs])
-          print ('ANCHORS:', mc.ANCHORS)
-
-          self.pred_class_probs = tf.reshape(
-              tf.nn.softmax(
-                  tf.reshape(
-                      preds[:, :, :, :num_class_probs],
-                      [-1, mc.CLASSES]
-                  )
-              ),
-              [mc.BATCH_SIZE, mc.ANCHORS, mc.CLASSES],
-              name='pred_class_probs'
-          )
-          
-          # confidence
-          num_confidence_scores = mc.ANCHOR_PER_GRID+num_class_probs
-          self.pred_conf = tf.sigmoid(
-              tf.reshape(
-                  preds[:, :, :, num_class_probs:num_confidence_scores],
-                  [mc.BATCH_SIZE, mc.ANCHORS]
-              ),
-              name='pred_confidence_score'
-          )
-
-          # bbox_delta
-          self.pred_box_delta = tf.reshape(
-              preds[:, :, :, num_confidence_scores:],
-              [mc.BATCH_SIZE, mc.ANCHORS, 4],
-              name='bbox_delta'
-          )
+      # bbox_delta
+      self.pred_box_delta = tf.reshape(
+          preds[:, :, :, num_confidence_scores:],
+          [mc.BATCH_SIZE, mc.ANCHORS, 4],
+          name='bbox_delta'
+      )
 
       # number of object. Used to normalize bbox and classification loss
       self.num_objects = tf.reduce_sum(self.input_mask, name='num_objects')
@@ -431,12 +390,12 @@ class ModelSkeleton:
 
   def binary_wrapper(self, x, a_bin=16, min_rng=-0.5, max_rng=0.5): # activation binarization
     if a_bin == 1:
-      return binary_tanh(x)
+        return binary_tanh(x)
     elif a_bin == 8:
         x_quant = lin_8b_quant(x, min_rng=min_rng, max_rng=max_rng)
         return tf.nn.relu(x_quant)
     else:
-      return tf.nn.relu(x)
+        return tf.nn.relu(x)
 
   def _batch_norm(self, name, x):
     with tf.variable_scope(name):
@@ -474,8 +433,8 @@ class ModelSkeleton:
      
       self.model_params += [gamma, beta, mean, variance] # <- to save in snapshot
       with tf.control_dependencies(control_inputs):
-        y = tf.nn.batch_normalization(x, mean, variance, beta, gamma, 0.001)
-        y.set_shape(x.get_shape())
+          y = tf.nn.batch_normalization(x, mean, variance, beta, gamma, 0.001)
+      y.set_shape(x.get_shape())
       return y
 
   def _conv_bn_layer(
@@ -576,7 +535,7 @@ class ModelSkeleton:
 
   def _conv_layer(
       self, layer_name, inputs, filters, size, stride, padding='SAME',
-      freeze=False, xavier=False, relu=True, w_bin=16, stddev=0.001, depthwise=False):
+      freeze=False, xavier=False, relu=True, w_bin=16, bias_on=True, mul_f=1, stddev=0.001):
     """Convolutional layer operation constructor.
 
     Args:
@@ -617,7 +576,7 @@ class ModelSkeleton:
       print('Input tensor shape to {}: {}'.format(layer_name, inputs.get_shape()))
 
     with tf.variable_scope(layer_name) as scope:
-      channels = inputs.get_shape()[3] # # of input channel
+      channels = inputs.get_shape()[3]
 
       # re-order the caffe kernel with shape [out, in, h, w] -> tf kernel with
       # shape [h, w, in, out]
@@ -634,16 +593,126 @@ class ModelSkeleton:
             stddev=stddev, dtype=tf.float32)
         bias_init = tf.constant_initializer(0.0)
 
-      if depthwise == False: # normal conv 2D
-          kernel = _variable_with_weight_decay(
-              'kernels', shape=[size, size, int(channels), filters],
+      kernel = _variable_with_weight_decay(
+          'kernels', shape=[size, size, int(channels), filters],
+          wd=mc.WEIGHT_DECAY, initializer=kernel_init, trainable=(not freeze))
+      if False: # weight mask for pruning; one for each output channel
+          w_msk = _variable_with_weight_decay(
+              'mask', shape=[filters], 
               wd=mc.WEIGHT_DECAY, initializer=kernel_init, trainable=(not freeze))
-      else: # depthwise conv
-          # ignore filters parameter (# of ochannel since it's same to ichannel)
-          assert int(channels) == filters, "DW conv's ic should be same to oc: {} vs. {}".format(int(channels), filters)
-          kernel = _variable_with_weight_decay(
-              'kernels', shape=[size, size, int(channels), 1],
-              wd=mc.WEIGHT_DECAY, initializer=kernel_init, trainable=(not freeze))
+
+      if False: # Force 1/2 of output channels' weight to go to 0s
+          with tf.variable_scope('oc_loss') as scope:
+              kernel_channels = tf.unstack(kernel, axis=-1) # split into OCs # (H, W, IC, OC)
+              kernel_channels_even = kernel_channels[::2] # even output channels
+              kernel_channels_odd = kernel_channels[1::2] # odd output channels
+              tf.summary.histogram('kernel_cn_even', kernel_channels_even)
+              tf.summary.histogram('kernel_cn_odd', kernel_channels_odd)
+              oc_odd = tf.multiply(tf.nn.l2_loss(kernel_channels_odd), 0.001, name='oc_loss')
+              tf.summary.scalar('oc_odd', oc_odd)
+              oc_loss = tf.multiply(tf.nn.l2_loss(kernel_channels_even), 0.02, name='oc_loss')
+              tf.add_to_collection('losses', oc_loss)
+      elif False: # Force 2/3 of output channels' weight to go to 0s
+          with tf.variable_scope('oc_loss') as scope:
+              kernel_channels = tf.unstack(kernel, axis=-1) # split into OCs # (H, W, IC, OC)
+              mul_f = 5
+              split_idx = len(kernel_channels)*(mul_f-1)//(mul_f)
+              kernel_channels_even = kernel_channels[:split_idx]
+
+              #print('even len ', kernel_channels_even)
+              kernel_channels_even = tf.zeros(tf.shape(kernel_channels_even), tf.float32)
+              #print('zero len ', kernel_channels_even)
+              kernel_channels_odd  = kernel_channels[split_idx:]
+              kernel = tf.concat([kernel_channels_even, kernel_channels_odd], axis=0)
+              #print('shape of kernel even', tf.shape(kernel_channels_even))
+              #print('shape of kernel odd', tf.shape(kernel_channels_odd))
+              print('kernel ',kernel)
+              tf.summary.histogram('kernel_cn_even', kernel_channels_even)
+              tf.summary.histogram('kernel_cn_odd', kernel_channels_odd)
+              oc_odd = tf.multiply(tf.nn.l2_loss(kernel_channels_odd), 0.05, name='oc_loss')
+              tf.summary.scalar('oc_odd', oc_odd)
+              oc_loss = tf.multiply(tf.nn.l2_loss(kernel_channels_even), 0.05, name='oc_loss')
+              tf.add_to_collection('losses', oc_loss)
+      elif False: # mul_f based; Use only first 1/mul_f part; other parst are going to 0
+          with tf.variable_scope('oc_loss') as scope:
+              print('mul_f={}'.format(mul_f))
+              if mul_f > 1:
+                  if False: # initial training
+                      kernel_channels = tf.unstack(kernel, axis=-1) # split into OCs # (H, W, IC, OC)
+                      split_idx = len(kernel_channels)//mul_f
+                      kernel_channels_keep    = kernel_channels[:split_idx]
+                      kernel_channels_discard = kernel_channels[split_idx:]
+                      print('OC={} KEEP={} DISCARD={}'.format(len(kernel_channels), len(kernel_channels_keep), len(kernel_channels_discard)))
+
+                      tf.summary.histogram('kernel_cn_keep',    kernel_channels_keep)
+                      tf.summary.histogram('kernel_cn_discard', kernel_channels_discard)
+
+                      oc_loss = tf.multiply(tf.nn.l2_loss(kernel_channels_discard), 0.05, name='oc_loss')
+                      tf.add_to_collection('losses', oc_loss)
+                  elif False: # Initial training
+                      kernel_channels = tf.unstack(kernel, axis=-1) # split into OCs # (H, W, IC, OC)
+                      split_idx = len(kernel_channels)//mul_f
+                      kernel_channels_keep    = kernel_channels[:split_idx]
+                      kernel_channels_discard = kernel_channels[split_idx:]
+                      #print('kernel_channels_discard', kernel_channels[split_idx:])
+                      #kernel_channels_discard = tf.zeros(tf.shape(kernel_channels[split_idx:]), tf.float32)
+                      print('OC={} KEEP={} DISCARD={}'.format(len(kernel_channels), len(kernel_channels_keep), len(kernel_channels_discard)))
+
+                      tf.summary.histogram('kernel_cn_keep',    kernel_channels_keep)
+                      tf.summary.histogram('kernel_cn_discard', kernel_channels_discard)
+
+                      oc_loss = tf.multiply(tf.nn.l2_loss(kernel_channels_discard), 0.1, name='oc_loss')
+                      tf.add_to_collection('losses', oc_loss)
+
+                      #print(kernel_channels_keep)
+                      kernel = tf.concat([tf.transpose(kernel_channels_keep,    [1,2,3,0]), 
+                                          tf.transpose(kernel_channels_discard, [1,2,3,0])], axis=3)
+                  elif False: # Larger weight for converging to 0
+                      kernel_channels = tf.unstack(kernel, axis=-1) # split into OCs # (H, W, IC, OC)
+                      split_idx = len(kernel_channels)//mul_f
+                      kernel_channels_keep    = kernel_channels[:split_idx]
+                      kernel_channels_discard = kernel_channels[split_idx:]
+                      #print('kernel_channels_discard', kernel_channels[split_idx:])
+                      #kernel_channels_discard = tf.zeros(tf.shape(kernel_channels[split_idx:]), tf.float32)
+                      print('OC={} KEEP={} DISCARD={}'.format(len(kernel_channels), len(kernel_channels_keep), len(kernel_channels_discard)))
+
+                      tf.summary.histogram('kernel_cn_keep',    kernel_channels_keep)
+                      tf.summary.histogram('kernel_cn_discard', kernel_channels_discard)
+
+                      oc_loss = tf.multiply(tf.nn.l2_loss(kernel_channels_discard), 0.10, name='oc_loss')
+                      tf.add_to_collection('losses', oc_loss)
+
+                      #print(kernel_channels_keep)
+                      kernel = tf.concat([tf.transpose(kernel_channels_keep,    [1,2,3,0]), 
+                                          tf.transpose(kernel_channels_discard, [1,2,3,0])], axis=3)
+
+                  elif False: # retraining after setting 0s to discard
+                      kernel_channels = tf.unstack(kernel, axis=-1) # split into OCs # (H, W, IC, OC)
+                      split_idx = len(kernel_channels)//mul_f
+                      #zero_idx  = len(kernel_channels)-16 # 1, 4, 8, ...; split_idx is too large at one granularity
+                      #print(self.zero_amt)
+                      zero_idx  = len(kernel_channels)-40 # 1, 4, 8, ...; split_idx is too large at one granularity
+                      kernel_channels_keep    = kernel_channels[:split_idx]
+                      kernel_channels_discard = kernel_channels[split_idx:zero_idx]
+                      kernel_channels_zero    = kernel_channels[zero_idx:]
+                      kernel_channels_zero    = tf.zeros(tf.shape(kernel_channels_zero), tf.float32)
+                      tf.stop_gradient(kernel_channels_zero)
+                      #print('OC={} KEEP={} DISCARD={}'.format(len(kernel_channels), len(kernel_channels_keep), len(kernel_channels_discard)))
+
+                      tf.summary.histogram('kernel_cn_keep',    kernel_channels_keep)
+                      tf.summary.histogram('kernel_cn_discard', kernel_channels_discard)
+                      tf.summary.histogram('kernel_cn_zero', kernel_channels_zero)
+
+                      oc_loss = tf.multiply(tf.nn.l2_loss(kernel_channels_discard), 0.05, name='oc_loss')
+                      tf.add_to_collection('losses', oc_loss)
+
+                      kernel = tf.concat([tf.transpose(kernel_channels_keep,    [1,2,3,0]), 
+                                          tf.transpose(kernel_channels_discard, [1,2,3,0]),
+                                          tf.transpose(kernel_channels_zero,    [1,2,3,0])], axis=3)
+                  elif True: # Use of weight mask
+                      kernel = tf.cond(w_msk > 0.0,  kernel, tf.zeros(tf.shape(kernel), tf.float32))
+
+
 
       #biases = _variable_on_device('biases', [filters], bias_init, 
       #                          trainable=(not freeze))
@@ -653,31 +722,55 @@ class ModelSkeleton:
           self.model_params += [kernel]
           kernel_bin = binarize(kernel)
           tf.summary.histogram('kernel_bin', kernel_bin)
-          if depthwise == False:
-              conv = tf.nn.conv2d(inputs, kernel_bin, [1, stride, stride, 1], padding=padding, name='convolution')
-          else: # DW CONV
-              conv = tf.nn.depthwise_conv2d(inputs, kernel_bin, [1, stride, stride, 1], padding=padding, name='convolution')
+          conv = tf.nn.conv2d(inputs, kernel_bin, [1, stride, stride, 1], padding=padding, name='convolution')
           conv_bias = conv
       elif w_bin == 8: # 8b quantization
-          biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
-          self.model_params += [kernel, biases]
-          kernel_quant = lin_8b_quant(kernel)
+
+          if mul_f > 1 and False:
+              kernel_channels = tf.unstack(kernel, axis=-1) # split into OCs # (H, W, IC, OC)
+              split_idx = len(kernel_channels)//mul_f
+              kernel_channels_keep    = kernel_channels[:split_idx]
+              kernel_channels_discard = kernel_channels[split_idx:]
+
+              tf.summary.histogram('kernel_cn_keep',    kernel_channels_keep)
+              tf.summary.histogram('kernel_cn_discard', kernel_channels_discard)
+
+              oc_loss = tf.multiply(tf.nn.l2_loss(kernel_channels_discard), 0.05, name='oc_loss')
+              tf.add_to_collection('losses', oc_loss)
+
+              kernel_channels_keep_quant    = lin_8b_quant(tf.transpose(kernel_channels_keep,    [1,2,3,0]))
+              #kernel_channels_discard_quant = lin_8b_quant(tf.transpose(kernel_channels_discard, [1,2,3,0]), -0.00005, 0.00005)
+              #kernel_channels_discard_quant = lin_8b_quant(tf.transpose(kernel_channels_discard, [1,2,3,0]), -0.005, 0.005)
+              kernel_channels_discard_quant = lin_8b_quant(tf.transpose(kernel_channels_discard, [1,2,3,0]), -0.001, 0.001)
+
+              tf.summary.histogram('kernel_cn_keep_quant',    kernel_channels_keep_quant)
+              tf.summary.histogram('kernel_cn_discard_quant', kernel_channels_discard_quant)
+
+              kernel_quant = tf.concat([kernel_channels_keep_quant, kernel_channels_discard_quant], axis=3)
+          else:
+              kernel_quant = lin_8b_quant(kernel)
           tf.summary.histogram('kernel_quant', kernel_quant)
-          biases_quant = lin_8b_quant(biases)
-          tf.summary.histogram('biases_quant', biases_quant)
-          if depthwise == False:
-              conv = tf.nn.conv2d(inputs, kernel_quant, [1, stride, stride, 1], padding=padding, name='convolution')
-          else: # DW CONV
-              conv = tf.nn.depthwise_conv2d(inputs, kernel_quant, [1, stride, stride, 1], padding=padding, name='convolution')
+          conv = tf.nn.conv2d(inputs, kernel_quant, [1, stride, stride, 1], padding=padding, name='convolution')
+          self.model_params += [kernel]
+
+          if bias_on:
+              biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
+              biases_quant = lin_8b_quant(biases)
+              tf.summary.histogram('biases_quant', biases_quant)
+              self.model_params += [biases]
               conv_bias = tf.nn.bias_add(conv, biases_quant, name='bias_add')
+          else:
+              conv_bias = conv
       else:
-          biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
-          self.model_params += [kernel, biases]
-          if depthwise == False:
-              conv = tf.nn.conv2d(inputs, kernel, [1, stride, stride, 1], padding=padding, name='convolution')
-          else: # DW CONV
-              conv = tf.nn.depthwise_conv2d(inputs, kernel, [1, stride, stride, 1], padding=padding, name='convolution')
-      conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
+          conv = tf.nn.conv2d(inputs, kernel, [1, stride, stride, 1], padding=padding, name='convolution')
+          self.model_params += [kernel]
+          if bias_on:
+              biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
+              self.model_params += [biases]
+              conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
+          else:
+              conv_bias = conv
+      
       if relu:
         out = tf.nn.relu(conv_bias, 'relu')
       else:
