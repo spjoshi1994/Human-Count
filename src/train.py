@@ -18,7 +18,7 @@ import tensorflow as tf
 import threading
 
 from config import *
-from dataset import kitti
+from dataset import pascal_voc, kitti
 from utils.util import sparse_to_dense, bgr_to_rgb, bbox_transform
 from nets import *
 
@@ -45,7 +45,7 @@ tf.app.flags.DEFINE_integer('summary_step', 10,
                             """Number of steps to save summary.""")
 tf.app.flags.DEFINE_integer('checkpoint_step', 1000,
                             """Number of steps to save summary.""")
-tf.app.flags.DEFINE_string('gpu', '0', """gpu id.""")
+tf.app.flags.DEFINE_string('gpu', '1', """gpu id.""")
 
 
 def _draw_box(im, box_list, label_list, color=(128,0,128), cdict=None, form='center', scale=1):
@@ -76,9 +76,6 @@ def _viz_prediction_result(model, images, bboxes, labels, batch_det_bbox,
   mc = model.mc
 
   for i in range(len(images)):
-    images[i] *= 128.0
-
-  for i in range(len(images)):
     # draw ground truth
     _draw_box(
         images[i], bboxes[i],
@@ -99,7 +96,7 @@ def _viz_prediction_result(model, images, bboxes, labels, batch_det_bbox,
         images[i], det_bbox,
         [mc.CLASS_NAMES[idx]+': (%.2f)'% prob \
             for idx, prob in zip(det_class, det_prob)],
-        (0, 255, 0))
+        (0, 0, 0))
 
 
 def train():
@@ -111,13 +108,29 @@ def train():
 
   with tf.Graph().as_default():
 
-    assert FLAGS.net == 'squeezeDet', \
+    assert FLAGS.net == 'vgg16' or FLAGS.net == 'resnet50' \
+        or FLAGS.net == 'squeezeDet' or FLAGS.net == 'squeezeDet+', \
         'Selected neural net architecture not supported: {}'.format(FLAGS.net)
-    if FLAGS.net == 'squeezeDet':
+    if FLAGS.net == 'vgg16':
+      mc = kitti_vgg16_config()
+      mc.IS_TRAINING = True
+      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+      model = VGG16ConvDet(mc)
+    elif FLAGS.net == 'resnet50':
+      mc = kitti_res50_config()
+      mc.IS_TRAINING = True
+      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+      model = ResNet50ConvDet(mc)
+    elif FLAGS.net == 'squeezeDet':
       mc = kitti_squeezeDet_config()
       mc.IS_TRAINING = True
       mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
       model = SqueezeDet(mc)
+    elif FLAGS.net == 'squeezeDet+':
+      mc = kitti_squeezeDetPlus_config()
+      mc.IS_TRAINING = True
+      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+      model = SqueezeDetPlus(mc)
 
     imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
 
@@ -150,7 +163,7 @@ def train():
     def _load_data(load_to_placeholder=True):
       # read batch input
       image_per_batch, label_per_batch, box_delta_per_batch, aidx_per_batch, \
-          bbox_per_batch = imdb.read_batch()
+          bbox_per_batch, image_per_batch_viz = imdb.read_batch()
 
       label_indices, bbox_indices, box_delta_values, mask_indices, box_values, \
           = [], [], [], [], []
@@ -208,19 +221,18 @@ def train():
               [1.0]*len(label_indices)),
       }
 
-      return feed_dict, image_per_batch, label_per_batch, bbox_per_batch
+      return feed_dict, image_per_batch, label_per_batch, bbox_per_batch, image_per_batch_viz
 
     def _enqueue(sess, coord):
       try:
         while not coord.should_stop():
-          feed_dict, _, _, _ = _load_data()
+          feed_dict, _, _, _, _ = _load_data()
           sess.run(model.enqueue_op, feed_dict=feed_dict)
           if mc.DEBUG_MODE:
             print ("added to the queue")
         if mc.DEBUG_MODE:
           print ("Finished enqueue")
-      #except Exception, e:
-      except getopt.GetoptError as e:
+      except Exception (e):
         coord.request_stop(e)
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
@@ -239,14 +251,6 @@ def train():
         init = tf.global_variables_initializer()
         sess.run(init)
 
-    # ==============================================================================
-    # Store Graph
-    # ==============================================================================
-    #tf.train.write_graph(sess.graph_def, "/tmp/tensorflow", "test.pb", as_text=False)
-    tf.train.write_graph(sess.graph_def, "./logs/tensorflow", "test.pbtxt", as_text=True)
-    # ==============================================================================
-    print("Graph store is done")
-
     summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
 
     coord = tf.train.Coordinator()
@@ -255,6 +259,7 @@ def train():
       enq_threads = []
       for _ in range(mc.NUM_THREAD):
         enq_thread = threading.Thread(target=_enqueue, args=[sess, coord])
+        enq_thread.daemon = True
         # enq_thread.isDaemon()
         enq_thread.start()
         enq_threads.append(enq_thread)
@@ -273,7 +278,7 @@ def train():
       start_time = time.time()
 
       if step % FLAGS.summary_step == 0:
-        feed_dict, image_per_batch, label_per_batch, bbox_per_batch = \
+        feed_dict, image_per_batch, label_per_batch, bbox_per_batch, image_per_batch_viz = \
             _load_data(load_to_placeholder=False)
         op_list = [
             model.train_op, model.loss, summary_op, model.det_boxes,
@@ -284,11 +289,13 @@ def train():
             conf_loss, bbox_loss, class_loss = sess.run(
                 op_list, feed_dict=feed_dict)
 
+	#image_per_batch_rgb = np.int_(np.array(image_per_batch)*128)
         _viz_prediction_result(
-            model, image_per_batch, bbox_per_batch, label_per_batch, det_boxes,
+            model, image_per_batch_viz, bbox_per_batch, label_per_batch, det_boxes,
             det_class, det_probs)
-        image_per_batch_rgb = image_per_batch
-        image_per_batch_rgb = bgr_to_rgb(image_per_batch_rgb)
+	#image_per_batch_rgb = [x * 128 for x in image_per_batch] # MUL 128 to each element in the list
+        #print(image_per_batch_rgb)
+        image_per_batch_rgb = bgr_to_rgb(image_per_batch_viz)
         viz_summary = sess.run(
             model.viz_op, feed_dict={model.image_to_show: image_per_batch_rgb})
 
@@ -304,7 +311,7 @@ def train():
               [model.train_op, model.loss, model.conf_loss, model.bbox_loss,
                model.class_loss], options=run_options)
         else:
-          feed_dict, _, _, _ = _load_data(load_to_placeholder=False)
+          feed_dict, _, _, _, _ = _load_data(load_to_placeholder=False)
           _, loss_value, conf_loss, bbox_loss, class_loss = sess.run(
               [model.train_op, model.loss, model.conf_loss, model.bbox_loss,
                model.class_loss], feed_dict=feed_dict)
