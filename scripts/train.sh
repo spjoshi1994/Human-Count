@@ -2,9 +2,9 @@
 
 export GPUID=1
 export NET="squeezeDet"
-export TRAIN_DIR="./logs/humancnt/"
+export TRAIN_DIR="./logs"
 
-export TRAIN_DATA_DIR="./data/humancnt"
+export TRAIN_DATA_DIR="./data/humancnt/"
 
 if [ $# -eq 0 ]
 then

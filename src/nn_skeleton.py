@@ -150,40 +150,82 @@ class ModelSkeleton:
     with tf.variable_scope('interpret_output') as scope:
       preds = self.preds
 
-      print ('ANCHOR_PER_GRID:', mc.ANCHOR_PER_GRID)
-      print ('CLASSES:', mc.CLASSES)
-      print ('ANCHORS:', mc.ANCHORS)
+      # multiclass harness uses conf, class, and box order, while single class harness uses class, conf, and box order
+      #
+      use_multiclass_harness = True 
 
-      # confidence
-      num_confidence_scores = mc.ANCHOR_PER_GRID
-      self.pred_conf = tf.sigmoid(
-          tf.reshape(
-              preds[:, :, :, :num_confidence_scores],
-              [mc.BATCH_SIZE, mc.ANCHORS]
-          ),
-          name='pred_confidence_score'
-      )
+      if use_multiclass_harness:
+          print ('ANCHOR_PER_GRID:', mc.ANCHOR_PER_GRID)
+          print ('CLASSES:', mc.CLASSES)
+          print ('ANCHORS:', mc.ANCHORS)
 
-      # probability
-      num_class_probs = mc.ANCHOR_PER_GRID*mc.CLASSES+num_confidence_scores
-
-      self.pred_class_probs = tf.reshape(
-          tf.nn.softmax(
+          # confidence
+          num_confidence_scores = mc.ANCHOR_PER_GRID
+          self.pred_conf = tf.sigmoid(
               tf.reshape(
-                  preds[:, :, :, num_confidence_scores:num_class_probs],
-                  [-1, mc.CLASSES]
-              )
-          ),
-          [mc.BATCH_SIZE, mc.ANCHORS, mc.CLASSES],
-          name='pred_class_probs'
-      )
-      
-      # bbox_delta
-      self.pred_box_delta = tf.reshape(
-          preds[:, :, :, num_class_probs:],
-          [mc.BATCH_SIZE, mc.ANCHORS, 4],
-          name='bbox_delta'
-      )
+                  preds[:, :, :, :num_confidence_scores],
+                  [mc.BATCH_SIZE, mc.ANCHORS]
+              ),
+              name='pred_confidence_score'
+          )
+
+          # probability
+          num_class_probs = mc.ANCHOR_PER_GRID*mc.CLASSES+num_confidence_scores
+
+          self.pred_class_probs = tf.reshape(
+              tf.nn.softmax(
+                  tf.reshape(
+                      preds[:, :, :, num_confidence_scores:num_class_probs],
+                      [-1, mc.CLASSES]
+                  )
+              ),
+              [mc.BATCH_SIZE, mc.ANCHORS, mc.CLASSES],
+              name='pred_class_probs'
+          )
+          
+          # bbox_delta
+          self.pred_box_delta = tf.reshape(
+              preds[:, :, :, num_class_probs:],
+              [mc.BATCH_SIZE, mc.ANCHORS, 4],
+              name='bbox_delta'
+          )
+
+
+      else: # single class harness
+          # probability
+          num_class_probs = mc.ANCHOR_PER_GRID*mc.CLASSES
+          print ('ANCHOR_PER_GRID:', mc.ANCHOR_PER_GRID)
+          print ('CLASSES:', mc.CLASSES)
+          print ('preds2:', preds[:, :, :, :num_class_probs])
+          print ('ANCHORS:', mc.ANCHORS)
+
+          self.pred_class_probs = tf.reshape(
+              tf.nn.softmax(
+                  tf.reshape(
+                      preds[:, :, :, :num_class_probs],
+                      [-1, mc.CLASSES]
+                  )
+              ),
+              [mc.BATCH_SIZE, mc.ANCHORS, mc.CLASSES],
+              name='pred_class_probs'
+          )
+          
+          # confidence
+          num_confidence_scores = mc.ANCHOR_PER_GRID+num_class_probs
+          self.pred_conf = tf.sigmoid(
+              tf.reshape(
+                  preds[:, :, :, num_class_probs:num_confidence_scores],
+                  [mc.BATCH_SIZE, mc.ANCHORS]
+              ),
+              name='pred_confidence_score'
+          )
+
+          # bbox_delta
+          self.pred_box_delta = tf.reshape(
+              preds[:, :, :, num_confidence_scores:],
+              [mc.BATCH_SIZE, mc.ANCHORS, 4],
+              name='bbox_delta'
+          )
 
       # number of object. Used to normalize bbox and classification loss
       self.num_objects = tf.reduce_sum(self.input_mask, name='num_objects')
@@ -391,10 +433,10 @@ class ModelSkeleton:
     if a_bin == 1:
       return binary_tanh(x)
     elif a_bin == 8:
-      x_quant = lin_8b_quant(x, min_rng=min_rng, max_rng=max_rng)
-      return tf.nn.relu(x_quant)
+        x_quant = lin_8b_quant(x, min_rng=min_rng, max_rng=max_rng)
+        return tf.nn.relu(x_quant)
     else:
-	    return tf.nn.relu(x)
+      return tf.nn.relu(x)
 
   def _batch_norm(self, name, x):
     with tf.variable_scope(name):
@@ -534,7 +576,7 @@ class ModelSkeleton:
 
   def _conv_layer(
       self, layer_name, inputs, filters, size, stride, padding='SAME',
-      freeze=False, xavier=False, relu=True, w_bin=16, stddev=0.001):
+      freeze=False, xavier=False, relu=True, w_bin=16, stddev=0.001, depthwise=False):
     """Convolutional layer operation constructor.
 
     Args:
@@ -575,7 +617,7 @@ class ModelSkeleton:
       print('Input tensor shape to {}: {}'.format(layer_name, inputs.get_shape()))
 
     with tf.variable_scope(layer_name) as scope:
-      channels = inputs.get_shape()[3]
+      channels = inputs.get_shape()[3] # # of input channel
 
       # re-order the caffe kernel with shape [out, in, h, w] -> tf kernel with
       # shape [h, w, in, out]
@@ -592,35 +634,50 @@ class ModelSkeleton:
             stddev=stddev, dtype=tf.float32)
         bias_init = tf.constant_initializer(0.0)
 
-      kernel = _variable_with_weight_decay(
-          'kernels', shape=[size, size, int(channels), filters],
-          wd=mc.WEIGHT_DECAY, initializer=kernel_init, trainable=(not freeze))
+      if depthwise == False: # normal conv 2D
+          kernel = _variable_with_weight_decay(
+              'kernels', shape=[size, size, int(channels), filters],
+              wd=mc.WEIGHT_DECAY, initializer=kernel_init, trainable=(not freeze))
+      else: # depthwise conv
+          # ignore filters parameter (# of ochannel since it's same to ichannel)
+          assert int(channels) == filters, "DW conv's ic should be same to oc: {} vs. {}".format(int(channels), filters)
+          kernel = _variable_with_weight_decay(
+              'kernels', shape=[size, size, int(channels), 1],
+              wd=mc.WEIGHT_DECAY, initializer=kernel_init, trainable=(not freeze))
 
       #biases = _variable_on_device('biases', [filters], bias_init, 
       #                          trainable=(not freeze))
       #self.model_params += [kernel, biases]
 
       if w_bin == 1: # binarized conv
-        self.model_params += [kernel]
-        kernel_bin = binarize(kernel)
-        tf.summary.histogram('kernel_bin', kernel_bin)
-        conv = tf.nn.conv2d(inputs, kernel_bin, [1, stride, stride, 1], padding=padding, name='convolution')
-        conv_bias = conv
+          self.model_params += [kernel]
+          kernel_bin = binarize(kernel)
+          tf.summary.histogram('kernel_bin', kernel_bin)
+          if depthwise == False:
+              conv = tf.nn.conv2d(inputs, kernel_bin, [1, stride, stride, 1], padding=padding, name='convolution')
+          else: # DW CONV
+              conv = tf.nn.depthwise_conv2d(inputs, kernel_bin, [1, stride, stride, 1], padding=padding, name='convolution')
+          conv_bias = conv
       elif w_bin == 8: # 8b quantization
-        biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
-        self.model_params += [kernel, biases]
-        kernel_quant = lin_8b_quant(kernel)
-        tf.summary.histogram('kernel_quant', kernel_quant)
-        biases_quant = lin_8b_quant(biases)
-        tf.summary.histogram('biases_quant', biases_quant)
-        conv = tf.nn.conv2d(inputs, kernel_quant, [1, stride, stride, 1], padding=padding, name='convolution')
-        conv_bias = tf.nn.bias_add(conv, biases_quant, name='bias_add')
+          biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
+          self.model_params += [kernel, biases]
+          kernel_quant = lin_8b_quant(kernel)
+          tf.summary.histogram('kernel_quant', kernel_quant)
+          biases_quant = lin_8b_quant(biases)
+          tf.summary.histogram('biases_quant', biases_quant)
+          if depthwise == False:
+              conv = tf.nn.conv2d(inputs, kernel_quant, [1, stride, stride, 1], padding=padding, name='convolution')
+          else: # DW CONV
+              conv = tf.nn.depthwise_conv2d(inputs, kernel_quant, [1, stride, stride, 1], padding=padding, name='convolution')
+              conv_bias = tf.nn.bias_add(conv, biases_quant, name='bias_add')
       else:
-        biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
-        self.model_params += [kernel, biases]
-        conv = tf.nn.conv2d(inputs, kernel, [1, stride, stride, 1], padding=padding, name='convolution')
-        conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
-      
+          biases = _variable_on_device('biases', [filters], bias_init, trainable=(not freeze))
+          self.model_params += [kernel, biases]
+          if depthwise == False:
+              conv = tf.nn.conv2d(inputs, kernel, [1, stride, stride, 1], padding=padding, name='convolution')
+          else: # DW CONV
+              conv = tf.nn.depthwise_conv2d(inputs, kernel, [1, stride, stride, 1], padding=padding, name='convolution')
+      conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
       if relu:
         out = tf.nn.relu(conv_bias, 'relu')
       else:

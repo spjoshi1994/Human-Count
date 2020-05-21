@@ -1,6 +1,0 @@
-python ./src/inference.py --mode=image \
-                     --checkpoint=./logs/humancnt/train/model.ckpt-249999 \
-                     --input_path=./data/test/img/22_020826782.jpg \
-                     --out_dir=./data/test/img_out/ \
-                     --demo_net=squeezeDet
-
