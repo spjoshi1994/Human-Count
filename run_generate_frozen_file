@@ -1,0 +1,1 @@
+python src/genpb.py --ckpt_dir=./logs/humancnt/train/ --freeze
