@@ -26,6 +26,7 @@ import tensorflow as tf
 
 from config import *
 from train import _draw_box
+from utils.util import bbox_transform
 from nets import *
 #from utils.util import sparse_to_dense, bgr_to_rgb, bbox_transform
 
@@ -35,10 +36,11 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string(
     'mode', 'image', """'image' or 'video'.""")
 tf.app.flags.DEFINE_string(
-    'checkpoint', './data/model_checkpoints/squeezeDet/model.ckpt-87000',
+    # 'checkpoint', './data/model_checkpoints/squeezeDet/model.ckpt-87000',
+    'checkpoint', './logs/model.ckpt-999',
     """Path to the model parameter file.""")
 tf.app.flags.DEFINE_string(
-    'input_path', './data/sample.png',
+    'input_path', './data/test/img/*',
     """Input image or video to be detected. Can process glob input such as """
     """./data/00000*.png.""")
 tf.app.flags.DEFINE_string(
@@ -47,6 +49,29 @@ tf.app.flags.DEFINE_string(
     'demo_net', 'squeezeDet', """Neural net architecture.""")
 #tf.app.flags.DEFINE_integer(
 #    'gpu', 1, """GPU selection.""")
+
+def _draw_box(im, org_img, box_list, label_list, color=(128,0,128), cdict=None, form='center', scale=1):
+  assert form == 'center' or form == 'diagonal', \
+      'bounding box format not accepted: {}.'.format(form)
+
+  for bbox, label in zip(box_list, label_list):
+
+    if form == 'center':
+      bbox = bbox_transform(bbox)
+
+    xmin, ymin, xmax, ymax = [int(b)*scale for b in bbox]
+
+    l = label.split(':')[0]
+    if cdict and l in cdict:
+      c = cdict[l]
+    else:
+      c = color
+
+    # draw box
+    cv2.rectangle(org_img, (xmin, ymin), (xmax, ymax), c, 1)
+    # draw label
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    cv2.putText(org_img, label, (max(1, xmin-10), ymax+10), font, 0.3, c, 1)
 
 
 def video_demo():
@@ -281,8 +306,12 @@ def image_demo():
       print(FLAGS.input_path)
       for f in glob.iglob(FLAGS.input_path):
         print('file name:'+f)
+        
         im = cv2.imread(f) # <---------------------------- BGR format
         im = im.astype(np.float32, copy=False)
+        # Change the given images shape in the model format
+        im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
+        print(im.shape)
 
         #im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
         orig_h, orig_w, _ = [float(v) for v in im.shape]

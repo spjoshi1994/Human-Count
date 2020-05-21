@@ -90,7 +90,8 @@ class imdb(object):
       im = cv2.imread(self._image_path_at(i))
       im = im.astype(np.float32, copy=False)
       im -= mc.BGR_MEANS
-      im /= 128.0 # to make input in the range of [0, 2)
+	  #daniel..
+      im /= 128.0 # to make input in the range of [0, 2) 
       orig_h, orig_w, _ = [float(v) for v in im.shape]
       im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
 
@@ -132,7 +133,6 @@ class imdb(object):
         self._cur_idx += mc.BATCH_SIZE
 
     image_per_batch = []
-    image_per_batch_viz = []
     label_per_batch = []
     bbox_per_batch  = []
     delta_per_batch = []
@@ -161,17 +161,19 @@ class imdb(object):
       im = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
 
       im -= mc.BGR_MEANS # <-------------------------------
+      #daniel 
       im /= 128.0 # to make input in the range of [0, 2)
       orig_h, orig_w, _ = [float(v) for v in im.shape]
 
       # load annotations
       label_per_batch.append([b[4] for b in self._rois[idx][:]])
       gt_bbox = np.array([[(b[0]+b[2])/2, (b[1]+b[3])/2, b[2]-b[0], b[3]-b[1]] for b in self._rois[idx][:]])
-      assert np.all(gt_bbox[:,0]) > 0, 'less than 0 gt_bbox[0]'
-      assert np.all(gt_bbox[:,1]) > 0, 'less than 0 gt_bbox[1]'
-      assert np.all(gt_bbox[:,2]) > 0, 'less than 0 gt_bbox[2]'
-      assert np.all(gt_bbox[:,3]) > 0, 'less than 0 gt_bbox[3]'
-
+      '''
+      assert gt_bbox[:,0].all > 0, 'less than 0 gt_bbox[0]'
+      assert gt_bbox[:,1].all > 0, 'less than 0 gt_bbox[1]'
+      assert gt_bbox[:,2].all > 0, 'less than 0 gt_bbox[2]'
+      assert gt_bbox[:,3].all > 0, 'less than 0 gt_bbox[3]'
+      '''
       if mc.DATA_AUGMENTATION:
         # Flip image with 50% probability
         if np.random.randint(2) > 0.5:
@@ -180,9 +182,8 @@ class imdb(object):
 
 
       # scale image
-      #im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
+      im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
       image_per_batch.append(im)
-      image_per_batch_viz.append(im*128.0)
 
       # scale annotation
       x_scale = mc.IMAGE_WIDTH/orig_w
@@ -251,7 +252,7 @@ class imdb(object):
       print ('number of objects with 0 iou: {}'.format(num_zero_iou_obj))
 
     return image_per_batch, label_per_batch, delta_per_batch, \
-        aidx_per_batch, bbox_per_batch, image_per_batch_viz
+        aidx_per_batch, bbox_per_batch
 
   def evaluate_detections(self):
     raise NotImplementedError
@@ -297,7 +298,7 @@ class imdb(object):
       for i in range(min(num_det_per_type, len(dets))):
         det = dets[i]
         im = Image.open(
-            os.path.join(image_dir, det['im_idx']+image_format))
+            os.path.join(image_dir, det['im_idx']+image_format))        
         draw = ImageDraw.Draw(im)
         draw.rectangle(det['bbox'], outline=COLOR)
         draw.text((det['bbox'][0], det['bbox'][1]), 
