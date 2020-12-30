@@ -312,12 +312,13 @@ def image_demo():
       for f in glob.iglob(FLAGS.input_path):
         print('file name:'+f)
         im = cv2.imread(f) # <---------------------------- BGR format
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         im = im.astype(np.float32, copy=False)
 
         im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
-        orig_h, orig_w, _ = [float(v) for v in im.shape]
+        orig_h, orig_w = [float(v) for v in im.shape]
         org_im = im.copy()
-        im -= mc.BGR_MEANS # <---------------------------------------------------------------------!!!!!!
+        # im -= mc.BGR_MEANS # <---------------------------------------------------------------------!!!!!!
         im /= 128.0
 
         np.set_printoptions(threshold=np.inf)#'nan')
@@ -326,7 +327,7 @@ def image_demo():
         # Detect
         det_boxes, det_probs, det_class, conv12 = sess.run(
             [model.det_boxes, model.det_probs, model.det_class, model.preds],
-            feed_dict={model.image_input:[im]})
+            feed_dict={model.image_input:im.reshape(1,mc.IMAGE_WIDTH,mc.IMAGE_HEIGHT,1)})
         conv12 = np.reshape(conv12, (1,42,14,14))
         #print('shape of conv12={}'.format(conv12.shape))
         #print('conv12={}'.format(conv12))

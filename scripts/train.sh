@@ -3,7 +3,7 @@
 export GPUID=0
 export NET="squeezeDet"
 export TRAIN_DIR="./logs/humancnt/"
-export IMAGE_SET="train_128x128"
+export IMAGE_SET="train"
 
 export TRAIN_DATA_DIR="./data/humancnt"
 
