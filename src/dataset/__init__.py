@@ -1,2 +1,2 @@
 from .kitti import kitti
-from .pascal_voc import pascal_voc
+#from pascal_voc import pascal_voc

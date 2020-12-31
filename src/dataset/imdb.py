@@ -93,12 +93,9 @@ class imdb(object):
             im -= mc.BGR_MEANS
             im /= 128.0  # to make input in the range of [0, 2)
             orig_h, orig_w, _ = [float(v) for v in im.shape]
+            im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
             if mc.GRAY:
                 im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-            im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
-
-            if mc.GRAY:
-                im = im.reshape((mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT, 1))
 
             x_scale = mc.IMAGE_WIDTH / orig_w
             y_scale = mc.IMAGE_HEIGHT / orig_h
@@ -114,11 +111,11 @@ class imdb(object):
     Returns:
       image_per_batch: images. Shape: batch_size x width x height x [b, g, r]
       label_per_batch: labels. Shape: batch_size x object_num
-      delta_per_batch: bounding box deltas. Shape: batch_size x object_num x
+      delta_per_batch: bounding box deltas. Shape: batch_size x object_num x 
           [dx ,dy, dw, dh]
       aidx_per_batch: index of anchors that are responsible for prediction.
           Shape: batch_size x object_num
-      bbox_per_batch: scaled bounding boxes. Shape: batch_size x object_num x
+      bbox_per_batch: scaled bounding boxes. Shape: batch_size x object_num x 
           [cx, cy, w, h]
     """
         mc = self.mc
@@ -152,7 +149,7 @@ class imdb(object):
 
         for idx in batch_idx:
             # load the image
-            im = cv2.imread(self._image_path_at(idx), cv2.IMREAD_UNCHANGED)
+            im = cv2.imread(self._image_path_at(idx))
             if im is None:
                 print('failed file read:' + self._image_path_at(idx))
 
@@ -169,14 +166,13 @@ class imdb(object):
             im -= mc.BGR_MEANS  # <-------------------------------
             im /= 128.0  # to make input in the range of [0, 2)
             orig_h, orig_w, _ = [float(v) for v in im.shape]
+
             if mc.GRAY:
                 im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-
             # load annotations
             label_per_batch.append([b[4] for b in self._rois[idx][:]])
             gt_bbox = np.array(
                 [[(b[0] + b[2]) / 2, (b[1] + b[3]) / 2, b[2] - b[0], b[3] - b[1]] for b in self._rois[idx][:]])
-
             assert np.all(gt_bbox[:, 0]) > 0, 'less than 0 gt_bbox[0]'
             assert np.all(gt_bbox[:, 1]) > 0, 'less than 0 gt_bbox[1]'
             assert np.all(gt_bbox[:, 2]) > 0, 'less than 0 gt_bbox[2]'
@@ -189,9 +185,8 @@ class imdb(object):
                 else:
                     im = im[:, ::-1]
                 gt_bbox[:, 0] = orig_w - 1 - gt_bbox[:, 0]
-
             # scale image
-            im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
+            # im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
             if mc.GRAY:
                 im = im.reshape((mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT, 1))
             image_per_batch.append(im)

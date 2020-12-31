@@ -11,8 +11,8 @@ def kitti_squeezeDet_config():
     """Specify the parameters to tune below."""
     mc = base_model_config('KITTI')
 
-    mc.IMAGE_WIDTH = 224  # 128 #64 #224
-    mc.IMAGE_HEIGHT = 224  # 128 #64 #
+    mc.IMAGE_WIDTH = 224
+    mc.IMAGE_HEIGHT = 224
     mc.GRAY = True
 
     mc.BATCH_SIZE = 20
@@ -47,8 +47,8 @@ def kitti_squeezeDet_config():
 
 
 def set_anchors(mc):
-    H, W, B = 14, 14, 7  # 224/16=14, 7 anchors
-    div_scale = 2.0 * 1  # 224/224=1
+    H, W, B = 14, 14, 7
+    div_scale = 2.0
 
     anchor_shapes = np.reshape(
         [np.array(

@@ -1,4 +1,4 @@
-# Crosslink-NX VGG-SqDet Human-Count
+# Crosslink-NX MobileNetV1-SqDet Human-Count
 
 A network backbone with VGG and SqueezeDet detector to Power Human Counting usecase.
 

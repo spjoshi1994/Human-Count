@@ -40,17 +40,8 @@ class kitti(imdb):
     assert os.path.exists(image_set_file), \
         'File does not exist: {}'.format(image_set_file)
 
-    image_idx=[]
     with open(image_set_file) as f:
-      #  image_idx = [x.strip() for x in f.readlines()]
-      lines = f.readlines()
-    f.close()
-
-    for x in lines:
-      idx = x.strip()
-      if self._is_empty_label(idx) == False: # non empty label file
-        image_idx.append(idx)
-
+      image_idx = [x.strip() for x in f.readlines()]
     return image_idx
 
   def _image_path_at(self, idx):
@@ -58,15 +49,6 @@ class kitti(imdb):
     assert os.path.exists(image_path), \
         'Image does not exist: {}'.format(image_path)
     return image_path
-
-  def _is_empty_label(self, index):
-    max_person = 0
-    filename = os.path.join(self._label_path, index+'.txt')
-    with open(filename, 'r') as f:
-      lines = f.readlines()
-    f.close()
-    num_person = len(lines)
-    return (num_person == 0)
 
   def _load_kitti_annotation(self):
     '''
@@ -106,7 +88,7 @@ class kitti(imdb):
 
       assert len(bboxes) > 0, 'empty box image'
       if num_person > max_person:
-          max_person = num_person
+        max_person = num_person
       idx2annotation[index] = bboxes
 
     print('max person:', max_person)

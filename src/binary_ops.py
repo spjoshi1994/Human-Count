@@ -21,7 +21,7 @@ def binarize(W): # weight binarization to 1 and -1
 
 def lin_8b_quant(w, min_rng=-0.5, max_rng=0.5):
     min_clip = tf.rint(min_rng*256/(max_rng-min_rng))
-    max_clip = tf.rint(max_rng*256/(max_rng-min_rng))
+    max_clip = tf.rint(max_rng*256/(max_rng-min_rng)-1)
 
     wq = 256.0 * w / (max_rng - min_rng)              # to expand [min, max] to [-128, 128]
     wq = tf.rint(wq)                                  # integer (quantization)
