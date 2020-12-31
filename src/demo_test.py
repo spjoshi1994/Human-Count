@@ -39,7 +39,7 @@ tf.app.flags.DEFINE_string(
     'checkpoint', './logs/model.ckpt-999',
     """Path to the model parameter file.""")
 tf.app.flags.DEFINE_string(
-    'input_path', './data/test/img/*',
+    'input_path', './data/test/test_image/*',
     """Input image or video to be detected. Can process glob input such as """
     """./data/00000*.png.""")
 tf.app.flags.DEFINE_string(
@@ -248,6 +248,20 @@ def video_demo():
   # out.release()
   cv2.destroyAllWindows()
 
+def bbox_transform(bbox):
+  """convert a bbox of form [cx, cy, w, h] to [xmin, ymin, xmax, ymax]. Works
+  for numpy array or list of tensors.
+  """
+  with tf.variable_scope('bbox_transform') as scope:
+    cx, cy, w, h = bbox
+    out_box = [[]]*4
+    out_box[0] = cx-w/2
+    out_box[1] = cy-h/2
+    out_box[2] = cx+w/2
+    out_box[3] = cy+h/2
+
+  return out_box
+
 
 def image_demo():
   """Detect image."""
@@ -317,10 +331,11 @@ def image_demo():
         final_boxes = [final_boxes[idx] for idx in keep_idx]
         final_probs = [final_probs[idx] for idx in keep_idx]
         final_class = [final_class[idx] for idx in keep_idx]
+      
 
-        print('keep_idx={}'.format(keep_idx))
-        print('final_boxes={}'.format(final_boxes))
-        print('final_probs={}'.format(final_probs))
+        #print('keep_idx={}'.format(keep_idx))
+        #print('final_boxes={}'.format(final_boxes))
+        #print('final_probs={}'.format(final_probs))
 
         # TODO(bichen): move this color dict to configuration file
         '''
@@ -343,9 +358,23 @@ def image_demo():
 
         file_name = os.path.split(f)[1]
         out_file_name = os.path.join(FLAGS.out_dir, 'out_'+file_name)
-
+      
+        txt_name = file_name.split('.')[0]
+        print('\n')
+        path = os.path.join(os.getcwd(),'pred_labels')
+        print(path)
+        print(txt_name+'.txt')
+        print('\n')
+        # final_box = []
+        with open(txt_name+'.txt',"w+") as ftr:
+            for i in range(len(keep_idx)):
+              final_box = bbox_transform(final_boxes[i])
+              ftr.write('Person'+' '+str(final_probs[i])+' '+str(final_box[0])+' '+str(final_box[1])+' '+str(final_box[2])+' '+str(final_box[3])+'\n')
+              # print('person'+' '+str(final_probs[i])+' '+str(final_boxes[i]))
+        ftr.close()
+        
         cv2.imwrite(out_file_name, org_im) # <----- BGR format
-        #cv2.imwrite(out_file_name, im_gray) # <----- BGR format
+        # cv2.imwrite(out_file_name, im_gray) # <----- BGR format
         print ('Image detection output saved to {}'.format(out_file_name))
 
 

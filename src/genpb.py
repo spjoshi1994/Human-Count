@@ -383,7 +383,7 @@ def genpb():
   saver = tf.train.Saver(model.model_params)
   with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
       ckpt = tf.train.latest_checkpoint("./")
-      print("Using checkpoint: " + ckpt)
+      print("Using checkpoint: ", ckpt)
       saver.restore(sess, ckpt)
       tf.train.write_graph(sess.graph_def, "./", 'model.pbtxt', as_text=True)
       print("saved pbtxt at checkpoint direcory Path")
