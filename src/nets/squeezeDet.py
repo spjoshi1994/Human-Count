@@ -17,20 +17,20 @@ import tensorflow as tf
 from nn_skeleton import ModelSkeleton
 
 class SqueezeDet(ModelSkeleton):
-  def __init__(self, mc, gpu_id=0):
+  def __init__(self, mc, freeze_layers, gpu_id=0):
     with tf.device('/gpu:{}'.format(gpu_id)):
       ModelSkeleton.__init__(self, mc)
       #self.zero_amt = tf.constant(20, tf.float32)
       #tf.summary.scalar('zero amt', self.zero_amt)
 
 
-      self._add_forward_graph()
+      self._add_forward_graph(freeze_layers)
       self._add_interpretation_graph()
       self._add_loss_graph()
       self._add_train_graph()
       self._add_viz_graph()
 
-  def _add_forward_graph(self):
+  def _add_forward_graph(self, freeze_layers):
     """NN architecture."""
 
     mc = self.mc
@@ -70,14 +70,17 @@ class SqueezeDet(ModelSkeleton):
         max_rng =  2.0
 
         bias_on = False # no bias for T+
+    if not len(freeze_layers):
+        freeze_layers = [False, False, False, False, False, False, False]
 
-    fire1 = self._fire_layer('fire1', self.image_input, oc=depth[0], freeze=False, w_bin=fl_w_bin, a_bin=fl_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
-    fire2 = self._fire_layer('fire2', fire1,            oc=depth[1], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin, pool_en=False, min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
-    fire3 = self._fire_layer('fire3', fire2,            oc=depth[2], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
-    fire4 = self._fire_layer('fire4', fire3,            oc=depth[3], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin, pool_en=False, min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
-    fire5 = self._fire_layer('fire5', fire4,            oc=depth[4], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
-    fire6 = self._fire_layer('fire6', fire5,            oc=depth[5], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin, pool_en=False, min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
-    fire7 = self._fire_layer('fire7', fire6,            oc=depth[6], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
+
+    fire1 = self._fire_layer('fire1', self.image_input, oc=depth[0], freeze=freeze_layers[0], w_bin=fl_w_bin, a_bin=fl_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
+    fire2 = self._fire_layer('fire2', fire1,            oc=depth[1], freeze=freeze_layers[1], w_bin=ml_w_bin, a_bin=ml_a_bin, pool_en=False, min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
+    fire3 = self._fire_layer('fire3', fire2,            oc=depth[2], freeze=freeze_layers[2], w_bin=ml_w_bin, a_bin=ml_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
+    fire4 = self._fire_layer('fire4', fire3,            oc=depth[3], freeze=freeze_layers[3], w_bin=ml_w_bin, a_bin=ml_a_bin, pool_en=False, min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
+    fire5 = self._fire_layer('fire5', fire4,            oc=depth[4], freeze=freeze_layers[4], w_bin=ml_w_bin, a_bin=ml_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
+    fire6 = self._fire_layer('fire6', fire5,            oc=depth[5], freeze=freeze_layers[5], w_bin=ml_w_bin, a_bin=ml_a_bin, pool_en=False, min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
+    fire7 = self._fire_layer('fire7', fire6,            oc=depth[6], freeze=freeze_layers[6], w_bin=ml_w_bin, a_bin=ml_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)
     fire_o = fire7
 
     ####################################################################
