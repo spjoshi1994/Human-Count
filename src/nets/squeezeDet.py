@@ -72,6 +72,8 @@ class SqueezeDet(ModelSkeleton):
         bias_on = False # no bias for T+
     if not len(freeze_layers):
         freeze_layers = [False, False, False, False, False, False, False]
+    else:
+        freeze_layers = [bool(int(item)) for item in freeze_layers.split(',')]
 
 
     fire1 = self._fire_layer('fire1', self.image_input, oc=depth[0], freeze=freeze_layers[0], w_bin=fl_w_bin, a_bin=fl_a_bin,                min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=mul_f)

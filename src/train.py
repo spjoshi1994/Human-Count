@@ -46,7 +46,7 @@ tf.app.flags.DEFINE_integer('summary_step', 10,
 tf.app.flags.DEFINE_integer('checkpoint_step', 1000,
                             """Number of steps to save summary.""")
 tf.app.flags.DEFINE_string('gpu', '1', """gpu id.""")
-tf.app.flags.DEFINE_list('freeze_layers', [], """Layers that needs to be freezed. User's responsibility is to give same"""
+tf.app.flags.DEFINE_string('freeze_layers', "", """Comma separated layers that needs to be freezed. User's responsibility is to give same"""
                         """ number of inputs as number of layers.""")
 
 
