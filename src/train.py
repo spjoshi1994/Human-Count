@@ -263,7 +263,7 @@ def train():
         if mc.NUM_THREAD > 0:
             enq_threads = []
             for _ in range(mc.NUM_THREAD):
-                enq_thread = threading.Thread(target=_enqueue, args=[sess, coord])
+                enq_thread = threading.Thread(target=_enqueue, args=[sess, coord],daemon=True)
                 # enq_thread.isDaemon()
                 enq_thread.start()
                 enq_threads.append(enq_thread)
