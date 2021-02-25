@@ -71,7 +71,7 @@ class SqueezeDet(ModelSkeleton):
 
         bias_on = False # no bias for T+
     if not len(freeze_layers):
-        freeze_layers = [False, False, False, False, False, False, False]
+        freeze_layers = [False, False, False, False, False, False, False , False]
     else:
         freeze_layers = [bool(int(item)) for item in freeze_layers.split(',')]
 
@@ -97,7 +97,7 @@ class SqueezeDet(ModelSkeleton):
         self.fire7 = fire7
 
     num_output = mc.ANCHOR_PER_GRID * (mc.CLASSES + 1 + 4)
-    self.preds = self._conv_layer('conv12', fire_o, filters=num_output, size=3, stride=1,
+    self.preds = self._conv_layer('conv12', fire_o, filters=num_output, freeze=freeze_layers[7], size=3, stride=1,
         padding='SAME', xavier=False, relu=False, stddev=0.0001, w_bin=sl_w_bin, bias_on=bias_on)
     print('self.preds:', self.preds)
 
