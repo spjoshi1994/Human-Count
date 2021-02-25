@@ -17,7 +17,7 @@ import tensorflow as tf
 from nn_skeleton import ModelSkeleton
 
 class SqueezeDet(ModelSkeleton):
-  def __init__(self, mc, freeze_layers, gpu_id=0):
+  def __init__(self, mc, freeze_layers=[], gpu_id=0):
     with tf.device('/gpu:{}'.format(gpu_id)):
       ModelSkeleton.__init__(self, mc)
       #self.zero_amt = tf.constant(20, tf.float32)
