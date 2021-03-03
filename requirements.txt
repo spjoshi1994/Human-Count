@@ -1,8 +1,0 @@
-easydict
-joblib
-keras==2.2.4
-opencv-python
-pillow
-scikit-video
-matplotlib
-ipywidgets
