@@ -72,8 +72,8 @@ def main():
                         help='momentum for the optimizer')
     parser.add_argument('--weight-decay', type=float, default=0.0005,
                         help='L2 normalization factor')
-    parser.add_argument('--continue-training', type=str2bool, default='False',
-                        help='continue training from the latest checkpoint')
+    # parser.add_argument('--continue-training', type=str2bool, default='False',
+    #                     help='continue training from the latest checkpoint -  True or False')
     parser.add_argument('--num-workers', type=int, default=mp.cpu_count(),
                         help='number of parallel generators')
     parser.add_argument('--generate-pbtxt', default=False, action="store_true",
@@ -91,22 +91,31 @@ def main():
     print('[i] Learning rate boundaries: ', args.lr_boundaries)
     print('[i] Momentum:             ', args.momentum)
     print('[i] Weight decay:         ', args.weight_decay)
-    print('[i] Continue:             ', args.continue_training)
+    # print('[i] Continue:             ', args.continue_training)
     print('[i] Number of workers:    ', args.num_workers)
 
     #---------------------------------------------------------------------------
     # Find an existing checkpoint
     #---------------------------------------------------------------------------
     start_epoch = 0
-    if args.continue_training:
+    state_flag = 1
+    ckpt_flag = 1
+    ckpt_file_flag = 1
+    meta_file_flag =1
+
+
+    if os.path.exists(args.name):
         state = tf.train.get_checkpoint_state(args.name)
         if state is None:
             print('[!] No network state found in ' + args.name)
+            state_flag = 0
             return 1
 
         ckpt_paths = state.all_model_checkpoint_paths
         if not ckpt_paths:
+
             print('[!] No network state found in ' + args.name)
+            ckpt_flag = 0
             return 1
 
         last_epoch = None
@@ -123,17 +132,32 @@ def main():
 
         if checkpoint_file is None:
             print('[!] No checkpoints found, cannot continue!')
+            ckpt_file_flag = 0
             return 1
 
         metagraph_file = checkpoint_file + '.meta'
 
         if not os.path.exists(metagraph_file):
             print('[!] Cannot find metagraph', metagraph_file)
+            meta_file_flag = 0
             return 1
-        start_epoch = last_epoch
+        #start_epoch = last_epoch
 
-    elif args.generate_pbtxt:
-        print("Generating pbtxt!")
+
+
+        if ckpt_flag and state_flag and ckpt_file_flag and meta_file_flag :
+        	start_epoch = last_epoch
+
+
+
+
+
+
+
+        
+
+    # elif args.generate_pbtxt:
+    #     print("Generating pbtxt!")
     #---------------------------------------------------------------------------
     # Create a project directory
     #---------------------------------------------------------------------------
