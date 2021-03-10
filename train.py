@@ -381,7 +381,7 @@ def main():
                 tf.train.write_graph(sess.graph_def, args.name, name, as_text=True)
 
 
-        checkpoint = '{}/e{}.ckpt'.format(args.name,args.int(epochs)-1)
+        checkpoint = '{}/e{}.ckpt'.format(args.name,int(args.epochs)-1)
         saver.save(sess, checkpoint)
         print('[i] Checkpoint saved:', checkpoint)
         name = "e"+str(e+1)+".txt"
