@@ -13,6 +13,7 @@ from google.protobuf import text_format as pbtf
 from tensorflow.python.tools import optimize_for_inference_lib
 from tensorflow.python.tools import freeze_graph
 import argparse
+import glob
 
 def get_platform():
   platforms = {
@@ -377,20 +378,48 @@ Refer to Readme.txt for more details.
 
 please Modify following dataPara line to process new checkpoint folder""" 
 
-def main():
+
+def get_latest_pbtxt(file_dir):
+  # import glob
+  # temp = []
+  # p = os.listdir("./checkpoints/")
+  # for i in p:
+  #   if ".pbtxt" in i:
+  #     temp.append(i)
+
+  file_name ="*.pbtxt"
+  print(file_name)
+  list_of_files = glob.glob(file_name)
+  #list_of_files1 = glob.glob("checkpoints/*.pbtxt")
+  print(list_of_files)
+  latest_file = max(list_of_files, key=os.path.getmtime)
+  print(latest_file)
+  return latest_file
+
+
+
+
+
+def main(checkpoint_dir):
   indexOfModel=0
-  dataParas=[[args.ckpt_name + ".pbtxt",      'image_input',  'image_input',  ['classifiers/classifier0_0/Conv2D','classifiers/classifier0_1/Conv2D','classifiers/classifier0_2/Conv2D','classifiers/classifier0_3/Conv2D', 'classifiers/classifier0_4/Conv2D','classifiers/classifier0_5/Conv2D', 'classifiers/classifier1_0/Conv2D','classifiers/classifier1_1/Conv2D','classifiers/classifier1_2/Conv2D','classifiers/classifier1_3/Conv2D','classifiers/classifier1_4/Conv2D','classifiers/classifier1_5/Conv2D'],    True,[1,224,224,3]]]
+  pbtxt = get_latest_pbtxt(checkpoint_dir)
+
+
+  
+
+
+  dataParas=[[pbtxt,      'image_input',  'image_input',  ['classifiers/classifier0_0/Conv2D','classifiers/classifier0_1/Conv2D','classifiers/classifier0_2/Conv2D','classifiers/classifier0_3/Conv2D', 'classifiers/classifier0_4/Conv2D','classifiers/classifier0_5/Conv2D', 'classifiers/classifier1_0/Conv2D','classifiers/classifier1_1/Conv2D','classifiers/classifier1_2/Conv2D','classifiers/classifier1_3/Conv2D','classifiers/classifier1_4/Conv2D','classifiers/classifier1_5/Conv2D'],    True,[1,224,224,3]]]
   demoCKPT2PB(dataParas[indexOfModel])
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
   parser.add_argument("--ckpt_dir", type=str, required=True, default="", help="Checkpoint directory")
-  parser.add_argument("--ckpt_name", type=str, required=True, default="", help="Checkpoint name that needs to be frozen")
+  #parser.add_argument("--ckpt_name", type=str, required=True, default="", help="Checkpoint name that needs to be frozen")
   parser.add_argument("--freeze", required = False, default = True, action = "store_true", help="Freeze graph for inference.")
   args = parser.parse_args()
   os.chdir(os.path.abspath(args.ckpt_dir))
   if args.freeze:
-    main()  
+    main(args.ckpt_dir)  
 
 
