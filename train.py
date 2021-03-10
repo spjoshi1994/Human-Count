@@ -76,8 +76,8 @@ def main():
     #                     help='continue training from the latest checkpoint -  True or False')
     parser.add_argument('--num-workers', type=int, default=mp.cpu_count(),
                         help='number of parallel generators')
-    parser.add_argument('--generate-pbtxt', default=False, action="store_true",
-                        help='Generate .pbtxt')
+    # parser.add_argument('--generate-pbtxt', default=False, action="store_true",
+    #                     help='Generate .pbtxt')
 
     args = parser.parse_args()
 
@@ -85,7 +85,7 @@ def main():
     print('[i] Data directory:       ', args.data_dir)
     print('[i] # epochs:             ', args.epochs)
     print('[i] Batch size:           ', args.batch_size)
-    print('[i] Tensorboard directory:', args.tensorboard_dir)
+    print('[i] Tensorboard directory:', args.name)
     print('[i] Checkpoint interval:  ', args.checkpoint_interval)
     print('[i] Learning rate values: ', args.lr_values)
     print('[i] Learning rate boundaries: ', args.lr_boundaries)
@@ -215,10 +215,7 @@ def main():
             ret = compute_lr(lr_values, lr_boundaries)
             learning_rate, global_step = ret
 
-        if args.generate_pbtxt:
-            is_training = False
-        else:
-            is_training = True
+        is_training = True
 
         net = SSDMV2(sess, td.preset, is_training)
         if start_epoch != 0:
@@ -230,16 +227,16 @@ def main():
                                 global_step=global_step,
                                 weight_decay=args.weight_decay,
                                 momentum=args.momentum)
-        if args.generate_pbtxt:
-            tf.train.write_graph(sess.graph_def, "./", 'inference_graph.pbtxt', as_text=True)
-            sys.exit()
+        # if args.generate_pbtxt:
+        #     tf.train.write_graph(sess.graph_def, "./", 'inference_graph.pbtxt', as_text=True)
+        #     sys.exit()
 
         initialize_uninitialized_variables(sess)
 
         #-----------------------------------------------------------------------
         # Create various helpers
         #-----------------------------------------------------------------------
-        summary_writer = tf.summary.FileWriter(args.tensorboard_dir,
+        summary_writer = tf.summary.FileWriter(args.name,
                                                sess.graph)
         saver = tf.train.Saver(max_to_keep=20)
 
@@ -380,9 +377,16 @@ def main():
                 saver.save(sess, checkpoint)
                 print('[i] Checkpoint saved:', checkpoint)
 
-        checkpoint = '{}/final.ckpt'.format(args.name)
+                name = "e"+str(e+1)+".pbtxt"
+                tf.train.write_graph(sess.graph_def, args.name, name, as_text=True)
+
+
+        checkpoint = '{}/e{}.ckpt'.format(args.name,args.int(epochs)-1)
         saver.save(sess, checkpoint)
         print('[i] Checkpoint saved:', checkpoint)
+        name = "e"+str(e+1)+".txt"
+        tf.train.write_graph(sess.graph_def, args.name, name, as_text=True)
+
 
     return 0
 
