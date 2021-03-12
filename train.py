@@ -147,6 +147,8 @@ def main():
 
         if ckpt_flag and state_flag and ckpt_file_flag and meta_file_flag :
         	start_epoch = last_epoch
+        else:
+            start_epoch = 0
 
 
 
@@ -377,15 +379,15 @@ def main():
                 saver.save(sess, checkpoint)
                 print('[i] Checkpoint saved:', checkpoint)
 
-                name = "e"+str(e+1)+".pbtxt"
-                tf.train.write_graph(sess.graph_def, args.name, name, as_text=True)
+                # name = "e"+str(e+1)+".pbtxt"
+                # tf.train.write_graph(sess.graph_def, args.name, name, as_text=True)
 
 
         checkpoint = '{}/e{}.ckpt'.format(args.name,int(args.epochs)-1)
         saver.save(sess, checkpoint)
         print('[i] Checkpoint saved:', checkpoint)
-        name = "e"+str(e+1)+".txt"
-        tf.train.write_graph(sess.graph_def, args.name, name, as_text=True)
+        # name = "e"+str(e+1)+".txt"
+        # tf.train.write_graph(sess.graph_def, args.name, name, as_text=True)
 
 
     return 0
