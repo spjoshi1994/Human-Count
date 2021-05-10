@@ -1,12 +1,12 @@
 #!/bin/bash
 
+
 export GPUID=0
-export NET="squeezeDet"
-export TRAIN_DIR="./logs/humancnt/"
-export IMAGE_SET="train_128x128"
+export NET="tinyyolo"
+export TRAIN_DIR="./logs"
 
-export TRAIN_DATA_DIR="./data/humancnt"
-
+export TRAIN_DATA_DIR="/home/softnautics/hdd/ShubhamJoshi/data_utils/training
+"
 if [ $# -eq 0 ]
 then
   echo "Usage: ./scripts/train.sh [options]"
@@ -21,7 +21,7 @@ fi
 
 while test $# -gt 0; do
   case "$1" in
-    -h|--help)
+      -h|--help)
       echo "Usage: ./scripts/train.sh [options]"
       echo " "
       echo "options:"
@@ -52,36 +52,15 @@ while test $# -gt 0; do
   esac
 done
 
-case "$NET" in 
-  "squeezeDet")
-    export PRETRAINED_MODEL_PATH="./data/SqueezeNet/squeezenet_v1.1.pkl"
-    ;;
-  "squeezeDet+")
-    export PRETRAINED_MODEL_PATH="./data/SqueezeNet/squeezenet_v1.0_SR_0.750.pkl"
-    ;;
-  "resnet50")
-    export PRETRAINED_MODEL_PATH="./data/ResNet/ResNet-50-weights.pkl"
-    ;;
-  "vgg16")
-    export PRETRAINED_MODEL_PATH="./data/VGG16/VGG_ILSVRC_16_layers_weights.pkl"
-    ;;
-  *)
-    echo "net architecture not supported."
-    exit 0
-    ;;
-esac
 
-
-python3 ./src/train.py \
+python ../src/train.py \
   --dataset=KITTI \
-  --pretrained_model_path=$PRETRAINED_MODEL_PATH \
+  --pretrained_model_path="" \
   --data_path=$TRAIN_DATA_DIR \
-  --image_set=$IMAGE_SET \
+  --image_set=train \
   --train_dir="$TRAIN_DIR/train" \
   --net=$NET \
-  --max_steps=250000 \
-  --summary_step=100 \
-  --checkpoint_step=500 \
+  --summary_step=1000 \
+  --checkpoint_step=1000 \
+  --max_steps=2000000 \
   --gpu=$GPUID
-
-#  --max_steps=900000 \

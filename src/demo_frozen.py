@@ -31,7 +31,7 @@ PROB_THRESH         = 0.005
 NMS_THRESH          = 0.4
 PLOT_PROB_THRESH    = 0.4
 CLASSES             = 1
-CLASS_NAMES         = ('person',)
+CLASS_NAMES         = ('eye',)
 #BGR_MEANS           = np.array([[[103.939, 116.779, 123.68]]])
 BGR_MEANS           = np.array([[[0.0, 0.0, 0.0]]])
 BATCH_SIZE          = 20
@@ -42,7 +42,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string(
     'mode', 'image', """'image' or 'video'.""")
 tf.app.flags.DEFINE_string(
-    'checkpoint', './data/model_checkpoints/squeezeDet/model.ckpt-87000',
+    'checkpoint', '/home/shubhamjoshi/mobilenetV1_crosslink_nx_vnv/crosslink_humancnt_training/scripts/logs/train/model.ckpt-178000',
     """Path to the model parameter file.""")
 tf.app.flags.DEFINE_string(
     'input_path', './data/sample.png',
@@ -285,9 +285,10 @@ def image_demo():
       im = cv2.imread(f)
       im = im.astype(np.float32, copy=False)
 
-      im = cv2.resize(im, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
+      #im = cv2.resize(im, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)
       orig_h, orig_w, _ = [float(v) for v in im.shape]
       im -= BGR_MEANS
+      im /= 128.0
 
       images = []
       for i in range(BATCH_SIZE):
@@ -318,6 +319,7 @@ def image_demo():
 
       # Draw boxes
       print('# of final boxes=', len(keep_idx))
+      im *= 128.0
       _draw_box(
           im, final_boxes,
           [CLASS_NAMES[idx]+': (%.2f)'% prob \

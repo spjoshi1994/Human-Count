@@ -168,6 +168,7 @@ def bbox_transform(bbox):
   """convert a bbox of form [cx, cy, w, h] to [xmin, ymin, xmax, ymax]. Works
   for numpy array or list of tensors.
   """
+  #print(bbox)
   with tf.variable_scope('bbox_transform') as scope:
     cx, cy, w, h = bbox
     out_box = [[]]*4
