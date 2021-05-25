@@ -58,7 +58,6 @@ def _draw_box(im, box_list, label_list, color=(128, 0, 128), cdict=None, form='c
     label = 'person'
     print()
     for bbox in box_list:
-        print("BBOX",bbox)
         if form == 'center':
             bbox = bbox_transform(bbox)
 
