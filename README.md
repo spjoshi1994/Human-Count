@@ -1,6 +1,6 @@
-# Crosslink-NX VGG-SqDet Human-Count
+# Crosslink-NX TinyYolov2 Human-Detction
 
-A network backbone with VGG and SqueezeDet detector to Power Human Counting usecase.
+A network backbone with TinyYolov2 detector to Power Human Detection usecase.
 
 ## Dataset
   Note that the dataset should be in KITTI format. Images and labels should be arranged as follows:
