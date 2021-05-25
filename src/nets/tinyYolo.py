@@ -62,7 +62,6 @@ class TinyYolov2(ModelSkeleton):
         freeze_layers = [False]*len(depth)
     else:
         freeze_layers = [bool(int(item)) for item in freeze_layers.split(',')]
-        assert len(freeze_layers)==len(depth),"Freeze layers depth mismatch the number of layers should be 6"
         
         
     # Max pool
