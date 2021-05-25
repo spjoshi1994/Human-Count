@@ -47,6 +47,10 @@ tf.app.flags.DEFINE_integer('checkpoint_step', 1000,
                             """Number of steps to save summary.""")
 tf.app.flags.DEFINE_string('gpu', '0', """gpu id.""")
 
+tf.app.flags.DEFINE_string('freeze_layers', "", 
+"""Comma separated layers that needs to be freezed. User's responsibility is to give same"""
+""" number of inputs as number of layers.""")
+
 
 def _draw_box(im, box_list, label_list, color=(128, 0, 128), cdict=None, form='center', scale=1):
     assert form == 'center' or form == 'diagonal', \
@@ -137,7 +141,7 @@ def train():
             mc = kitti_tinyYolo_config()
             mc.IS_TRAINING = True
             mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-            model = TinyYolov2(mc)
+            model = TinyYolov2(mc,FLAGS.freeze_layers)
 
         imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
 

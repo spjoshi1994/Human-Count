@@ -28,7 +28,7 @@ class TinyYolov2(ModelSkeleton):
 
 
 
-  def _add_forward_graph(self):
+  def _add_forward_graph(self,freeze_layers):
     """NN architecture."""
 
     mc = self.mc
@@ -55,16 +55,25 @@ class TinyYolov2(ModelSkeleton):
 
         min_rng =  0.0 # range of quanized activation
         max_rng =  2.0
-
+        
+    #Layer freezing support 
+    
+    if not len(freeze_layers):
+        freeze_layers = [False]*len(depth)
+    else:
+        freeze_layers = [bool(int(item)) for item in freeze_layers.split(',')]
+        assert len(freeze_layers)==len(depth),"Freeze layers depth mismatch the number of layers should be 6"
+        
+        
     # Max pool
     # 224x224x3
-    conv1 = self._Conv_BN_ReLU_Pool('conv1', self.image_input, oc=depth[0], freeze=False, w_bin=fl_w_bin, a_bin=fl_a_bin, min_rng=min_rng, max_rng=max_rng)
+    conv1 = self._Conv_BN_ReLU_Pool('conv1', self.image_input, oc=depth[0], freeze=freeze_layers[0], w_bin=fl_w_bin, a_bin=fl_a_bin, min_rng=min_rng, max_rng=max_rng)
     
-    conv2 = self._Conv_BN_ReLU_Pool('conv2', conv1, oc=depth[1], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin, min_rng=min_rng, max_rng=max_rng,pool_en=False) # remove pooling from here
-    conv3 = self._Conv_BN_ReLU_Pool('conv3', conv2, oc=depth[2], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin, min_rng=min_rng, max_rng=max_rng)
-    conv4 = self._Conv_BN_ReLU_Pool('conv4', conv3, oc=depth[3], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin, min_rng=min_rng, max_rng=max_rng)
-    conv5 = self._Conv_BN_ReLU_Pool('conv5', conv4, oc=depth[4], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin,  min_rng=min_rng, max_rng=max_rng)
-    conv6 = self._Conv_BN_ReLU_Pool('conv6', conv5, oc=depth[5], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin,  min_rng=min_rng, max_rng=max_rng,pool_en=False)
+    conv2 = self._Conv_BN_ReLU_Pool('conv2', conv1, oc=depth[1], freeze=freeze_layers[1], w_bin=ml_w_bin, a_bin=ml_a_bin, min_rng=min_rng, max_rng=max_rng,pool_en=False) # remove pooling from here
+    conv3 = self._Conv_BN_ReLU_Pool('conv3', conv2, oc=depth[2], freeze=freeze_layers[2], w_bin=ml_w_bin, a_bin=ml_a_bin, min_rng=min_rng, max_rng=max_rng)
+    conv4 = self._Conv_BN_ReLU_Pool('conv4', conv3, oc=depth[3], freeze=freeze_layers[3], w_bin=ml_w_bin, a_bin=ml_a_bin, min_rng=min_rng, max_rng=max_rng)
+    conv5 = self._Conv_BN_ReLU_Pool('conv5', conv4, oc=depth[4], freeze=freeze_layers[4], w_bin=ml_w_bin, a_bin=ml_a_bin,  min_rng=min_rng, max_rng=max_rng)
+    conv6 = self._Conv_BN_ReLU_Pool('conv6', conv5, oc=depth[5], freeze=freeze_layers[5], w_bin=ml_w_bin, a_bin=ml_a_bin,  min_rng=min_rng, max_rng=max_rng,pool_en=False)
     #conv7 = self._Conv_BN_ReLU_Pool('conv7', conv6, oc=depth[6], freeze=False, w_bin=ml_w_bin, a_bin=ml_a_bin,  min_rng=min_rng, max_rng=max_rng,conv_size=1,pool_en=False)
     output = conv6
 
