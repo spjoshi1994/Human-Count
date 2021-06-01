@@ -1,1 +1,0 @@
-./scripts/eval.sh -net squeezeDet -eval_dir /tmp/logs/squeezedet -image_set val -gpu 0
