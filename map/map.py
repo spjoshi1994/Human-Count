@@ -876,19 +876,20 @@ def map(arguments):
 
 
 def set_anchors():
-    H, W, B = 14, 14, 7  # 224/16=14, 7 anchors
-    div_scale = 2.0 * 1  # 224/224=1
+    H, W, B = 15, 20, 7
+    div_scale_h = 2.0 * (224 / IMAGE_HEIGHT)
+    div_scale_w = 2.0 * (224 / IMAGE_WIDTH)
 
     anchor_shapes = np.reshape(
         [np.array(
             [
-                [int(368. / div_scale), int(368. / div_scale)],
-                [int(276. / div_scale), int(276. / div_scale)],
-                [int(184. / div_scale), int(184. / div_scale)],
-                [int(138. / div_scale), int(138. / div_scale)],
-                [int(92. / div_scale), int(92. / div_scale)],
-                [int(69. / div_scale), int(69. / div_scale)],
-                [int(46. / div_scale), int(46. / div_scale)]])] * H * W,
+                [int(368. / div_scale_h), int(368. / div_scale_w)],
+                [int(276. / div_scale_h), int(276. / div_scale_w)],
+                [int(184. / div_scale_h), int(184. / div_scale_w)],
+                [int(138. / div_scale_h), int(138. / div_scale_w)],
+                [int(92. / div_scale_h), int(92. / div_scale_w)],
+                [int(69. / div_scale_h), int(69. / div_scale_w)],
+                [int(46. / div_scale_h), int(46. / div_scale_w)]])] * H * W,
         (H, W, B, 2)
     )
 
@@ -918,6 +919,8 @@ def set_anchors():
     )
 
     return anchors
+
+
 
 ANCHOR_BOX = set_anchors()
 ANCHORS = len(ANCHOR_BOX)
