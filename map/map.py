@@ -27,8 +27,8 @@ PROB_THRESH = 0.5
 TOP_N_DETECTION = 10  # 64
 BATCH_SIZE = 1
 CLASSES = 1
-IMAGE_WIDTH = 224
-IMAGE_HEIGHT = 224
+IMAGE_WIDTH = 320
+IMAGE_HEIGHT = 240
 MINOVERLAP = 0.5
 
 
@@ -1251,8 +1251,8 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--pb", required=True, help="Input Model Path")
     parser.add_argument("-i", "--dataset_path", required=False, default="./images", help="Input dataset Path")
     #parser.add_argument("-o", "--output", required=False, default="./inference_output", help="Output Path")
-    parser.add_argument("-inp", "--input_node", required=False, default="batch:0", help="input_node_name")
-    parser.add_argument("-out", "--output_node", required=False, default="conv12/bias_add:0", help="output_node_name")
+    parser.add_argument("-inp", "--input_node", required=False, default="input:0", help="input_node_name")
+    parser.add_argument("-out", "--output_node", required=False, default="output_node:0", help="output_node_name")
     parser.add_argument("-m", "--mode", required=False, default='image', help="camera or image")
     parser.add_argument('-na', '--no-animation', help="no animation is shown.", action="store_true")
     parser.add_argument('-np', '--no-plot', help="no plot is shown.", action="store_true")
