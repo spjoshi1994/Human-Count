@@ -27,8 +27,8 @@ PROB_THRESH = 0.5
 TOP_N_DETECTION = 10  # 64
 BATCH_SIZE = 1
 CLASSES = 1
-IMAGE_WIDTH = 240
-IMAGE_HEIGHT=320
+IMAGE_WIDTH = 320
+IMAGE_HEIGHT=240
 MINOVERLAP = 0.5
 
 
@@ -925,7 +925,7 @@ ANCHORS = len(ANCHOR_BOX)
 
 class sholder_surfing_model(object):
     def __init__(self, model_path,arguments):
-        self.input_shape = [arguments.channels, IMAGE_WIDTH, IMAGE_HEIGHT]
+        self.input_shape = [arguments.channels, IMAGE_HEIGHT, IMAGE_WIDTH]
         self.graph = tf.Graph()
         input_tensor_name = "input:0"
         #output_tensor_name = "conv12/convolution:0"
