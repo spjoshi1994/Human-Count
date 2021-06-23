@@ -925,7 +925,7 @@ ANCHORS = len(ANCHOR_BOX)
 
 class sholder_surfing_model(object):
     def __init__(self, model_path,arguments):
-        self.input_shape = [arguments.channels, IMAGE_HEIGHT, IMAGE_WIDTH]
+        self.input_shape = [arguments.channels, IMAGE_WIDTH, IMAGE_HEIGHT]
         self.graph = tf.Graph()
         input_tensor_name = "input:0"
         #output_tensor_name = "conv12/convolution:0"
