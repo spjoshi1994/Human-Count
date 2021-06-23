@@ -17,7 +17,7 @@ import tensorflow as tf
 from nn_skeleton import ModelSkeleton
 
 class TinyYolov2(ModelSkeleton):
-  def __init__(self, mc,freeze_layers, gpu_id=0):
+  def __init__(self, mc,freeze_layers=[], gpu_id=0):
     with tf.device('/gpu:{}'.format(gpu_id)):
       ModelSkeleton.__init__(self, mc)
       self._add_forward_graph(freeze_layers)
