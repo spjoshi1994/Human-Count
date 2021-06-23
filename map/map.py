@@ -1012,15 +1012,13 @@ class sholder_surfing_model(object):
         return keep
 
     def filter_prediction(self, boxes, probs, cls_idx):
+        print(probs)
         if len(probs.numpy()) > TOP_N_DETECTION > 0:
             order = probs.numpy().argsort()[:-TOP_N_DETECTION - 1:-1]
-            # print(type(probs), type(order))
             probs = probs.numpy()[order]
-            # print(probs)
             boxes = boxes.numpy()[order]
             cls_idx = cls_idx.numpy()[order]
         else:
-            print("===="*10)
             filtered_idx = np.nonzero(probs > PROB_THRESH)[0]
             probs = probs.numpy()[filtered_idx]
             boxes = boxes.numpy()[filtered_idx]
@@ -1040,45 +1038,22 @@ class sholder_surfing_model(object):
         return final_boxes, final_probs, final_cls_idx
 
     def interpreat_output(self, preds):
-        # print(preds[:,:,:,7:14])
+        pred_class_probs = tf.reshape(
+            tf.nn.softmax(
+                tf.reshape(
+                    preds[:, :, :, :7],
+                    [-1, CLASSES]
+                )
+            ),
+            [BATCH_SIZE, ANCHORS, CLASSES]
+        )
 
-
-        if self.channels == '1':
-        	 pred_class_probs = tf.reshape(
-	              tf.nn.softmax(
-	                  tf.reshape(
-	                      preds[:, :, :, :7],
-	                      [-1, CLASSES]
-	                  )
-	              ),
-	              [BATCH_SIZE, ANCHORS, CLASSES]
-	          )
-
-	         pred_conf = tf.sigmoid(
-	              tf.reshape(
-	                  preds[:, :, :, 7:14],
-	                  [BATCH_SIZE, ANCHORS]
-	              )
-	          )
-
-        else:
-        	 pred_class_probs = tf.reshape(
-	              tf.nn.softmax(
-	                  tf.reshape(
-	                      preds[:, :, :, 7:14],
-	                      [-1, CLASSES]
-	                  )
-	              ),
-	              [BATCH_SIZE, ANCHORS, CLASSES]
-	          )
-
-	         pred_conf = tf.sigmoid(
-	              tf.reshape(
-	                  preds[:, :, :, :7],
-	                  [BATCH_SIZE, ANCHORS]
-	              )
-	          )
-
+        pred_conf = tf.sigmoid(
+            tf.reshape(
+                preds[:, :, :, 7:14],
+                [BATCH_SIZE, ANCHORS]
+            )
+        )
 
         pred_box_delta = tf.reshape(preds[:, :, :, 14:], [BATCH_SIZE, ANCHORS, 4])
         delta_x, delta_y, delta_w, delta_h = tf.unstack(pred_box_delta, axis=2)
@@ -1103,9 +1078,10 @@ class sholder_surfing_model(object):
         det_boxes = tf.transpose(
             tf.stack(self.bbox_transform_inv([xmins, ymins, xmaxs, ymaxs])),
             (1, 2, 0))
-        probs = tf.multiply(
-            pred_class_probs,
-            tf.reshape(pred_conf, [BATCH_SIZE, ANCHORS, 1]))
+        # probs = tf.multiply(
+        #     pred_class_probs,
+        #     tf.reshape(pred_conf, [BATCH_SIZE, ANCHORS, 1]))
+        probs = tf.reshape(pred_conf, [BATCH_SIZE, ANCHORS, 1])
 
         det_probs = tf.reduce_max(probs, 2)
         det_class = tf.argmax(probs, 2)
