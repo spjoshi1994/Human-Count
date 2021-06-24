@@ -102,10 +102,10 @@ def convert(output_model_file, weight_file_path=r'./../../../../networks/Keras_O
         tf.io.write_graph(constant_graph, output_fld, os.path.abspath(output_model_file), as_text=False)
         #return constant_graph
 
-#if __name__ == "__main__":
-#    parser = argparse.ArgumentParser()
-#    parser.add_argument("-k", "--kerasmodel", required=True, help="Input Model Path")
-#    args = parser.parse_args()
-#    modelAbsPath = os.path.abspath(args.kerasmodel)
-#    output_file = modelAbsPath.replace('.h5', '.pb')
-#    convert(output_file, modelAbsPath)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-k", "--kerasmodel", required=True, help="Input Model Path")
+    args = parser.parse_args()
+    modelAbsPath = os.path.abspath(args.kerasmodel)
+    output_file = modelAbsPath.replace('.h5', '.pb')
+    convert(output_file, modelAbsPath)
