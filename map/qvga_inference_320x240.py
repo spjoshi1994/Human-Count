@@ -153,16 +153,16 @@ class sholder_surfing_model(object):
         return keep
 
     def filter_prediction(self, boxes, probs, cls_idx):
-        if len(probs.numpy()) > TOP_N_DETECTION > 0:
-            order = probs.numpy().argsort()[:-TOP_N_DETECTION - 1:-1]
-            probs = probs.numpy()[order]
-            boxes = boxes.numpy()[order]
-            cls_idx = cls_idx.numpy()[order]
+        if len(probs.eval(session=tf.Session())) > TOP_N_DETECTION > 0:
+            order = probs.eval(session=tf.Session()).argsort()[:-TOP_N_DETECTION - 1:-1]
+            probs = probs.eval(session=tf.Session())[order]
+            boxes = boxes.eval(session=tf.Session())[order]
+            cls_idx = cls_idx.eval(session=tf.Session())[order]
         else:
             filtered_idx = np.nonzero(probs > PROB_THRESH)[0]
-            probs = probs.numpy()[filtered_idx]
-            boxes = boxes.numpy()[filtered_idx]
-            cls_idx = cls_idx.numpy()[filtered_idx]
+            probs = probs.eval(session=tf.Session())[filtered_idx]
+            boxes = boxes.eval(session=tf.Session())[filtered_idx]
+            cls_idx = cls_idx.eval(session=tf.Session())[filtered_idx]
 
         final_boxes = []
         final_probs = []

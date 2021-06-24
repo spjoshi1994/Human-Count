@@ -873,3 +873,4 @@ if __name__ == '__main__':
     keras2tf.convert(args.pb, args.h5)
     inference.main(args)
     main(args)
+    os.system("rm inference.pb")
