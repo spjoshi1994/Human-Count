@@ -149,8 +149,8 @@ class SqueezeDet(ModelSkeleton):
 
     ex3x3_2 = self._fire_layer_3x3(layer_name+'_3x3_2', ex1x1, oc2_3x3, stddev=0.01, freeze=False, w_bin=w_bin, a_bin=a_bin, pool_en=pool_en, min_rng=min_rng, max_rng=max_rng, bias_on=bias_on, mul_f=1)
 
-    #concat = tf.concat([ex1x1_1, ex3x3_2], 3, name=layer_name+'_concat')
+    concat = tf.concat([ex1x1_1, ex3x3_2], 3, name=layer_name+'_concat')
     #tf.summary.histogram('concat', concat)
-    elt 
+    
 
     return concat
