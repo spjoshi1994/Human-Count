@@ -40,7 +40,7 @@ class kitti(imdb):
         data_root_path, 'ImageSets', self._image_set+'.txt') for data_root_path in self._data_root_path]
     for set_file in image_set_file:
         assert os.path.exists(set_file), \
-            'File does not exist: {}'.format(image_set_file)
+            'File does not exist: {}'.format(set_file)
     image_idx = []
     label_idx = []
     idx = []
