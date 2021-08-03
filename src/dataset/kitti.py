@@ -14,14 +14,14 @@ class kitti(imdb):
   def __init__(self, image_set, data_path, mc):
     imdb.__init__(self, 'kitti_'+image_set, mc)
     self._image_set = image_set
-    self._data_root_path = data_path
-    self._image_path = os.path.join(self._data_root_path, 'training', 'images')
-    self._label_path = os.path.join(self._data_root_path, 'training', 'labels')
+    self._data_root_path = data_path.split(',')
+    self._image_path = [os.path.join(path, 'training', 'images') for path in self._data_root_path]
+    self._label_path = [os.path.join(path, 'training', 'labels') for path in self._data_root_path]
     self._classes = self.mc.CLASS_NAMES
     self._class_to_idx = dict(zip(self.classes, range(self.num_classes)))
 
     # a list of string indices of images in the directory
-    self._image_idx = self._load_image_set_idx() 
+    self._image_idx,self._label_idx = self._load_image_set_idx() 
     # a dict of image_idx -> [[cx, cy, w, h, cls_idx]]. x,y,w,h are not divided by
     # the image width and height
     self._rois = self._load_kitti_annotation()
@@ -35,17 +35,29 @@ class kitti(imdb):
     self._eval_tool = './src/dataset/kitti-eval/cpp/evaluate_object'
 
   def _load_image_set_idx(self):
-    image_set_file = os.path.join(
-        self._data_root_path, 'ImageSets', self._image_set+'.txt')
-    assert os.path.exists(image_set_file), \
-        'File does not exist: {}'.format(image_set_file)
-
-    with open(image_set_file) as f:
-      image_idx = [x.strip() for x in f.readlines()]
-    return image_idx
+    self._image_path_idx = {}
+    image_set_file = [os.path.join(
+        data_root_path, 'ImageSets', self._image_set+'.txt') for data_root_path in self._data_root_path]
+    for set_file in image_set_file:
+        assert os.path.exists(set_file), \
+            'File does not exist: {}'.format(image_set_file)
+    image_idx = []
+    label_idx = []
+    idx = []
+    for root_file,label_path,set_file in zip(self._image_path,self._label_path,image_set_file):
+        
+        with open(set_file) as f:
+            idx.extend([x.strip() for x in f.readlines()]) 
+        image_idx.extend([os.path.join(root_file,x+'.jpg') for x in idx])
+        label_idx.extend([os.path.join(label_path,x+'.txt') for x in idx])
+        
+          
+    for ids,image_id in zip(idx,image_idx):
+        self._image_path_idx[ids] = image_id
+    return idx,label_idx
 
   def _image_path_at(self, idx):
-    image_path = os.path.join(self._image_path, idx+'.jpg')
+    image_path =self._image_path_idx[idx]
     assert os.path.exists(image_path), \
         'Image does not exist: {}'.format(image_path)
     return image_path
@@ -68,8 +80,8 @@ class kitti(imdb):
 
     idx2annotation = {}
     max_person = 0
-    for index in self._image_idx:
-      filename = os.path.join(self._label_path, index+'.txt')
+    for idx,index in zip(self._image_idx,self._label_idx):
+      filename = index
       with open(filename, 'r') as f:
         lines = f.readlines()
       f.close()
@@ -89,7 +101,7 @@ class kitti(imdb):
       assert len(bboxes) > 0, 'empty box image'
       if num_person > max_person:
         max_person = num_person
-      idx2annotation[index] = bboxes
+      idx2annotation[idx] = bboxes
 
     print('max person:', max_person)
     return idx2annotation
