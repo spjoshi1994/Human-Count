@@ -184,29 +184,7 @@ class MyConstraints(tf.keras.constraints.Constraint):
     def get_config(self):
         return {"name":self.name}
 
-### Added this class on Aug 20th
-#@tf.keras.utils.register_keras_serializable(package='Custom')
-class My_FC_Regularizer(tf.keras.regularizers.Regularizer):
-    def __init__(self,  **kwargs):
-        super(My_FC_Regularizer, self).__init__(**kwargs)
 
-    def __call__(self, w):
-        min_clip = -32768.0
-        max_clip = 32767.0
-        min_rng=-32.0
-        max_rng=32.0
-        wq = 65536.0 * w / (max_rng - min_rng)  # to expand [min, max] to [-128, 128]
-        wq = K.round(wq)  # integer (quantization)
-        wq = K.clip(wq, min_clip, max_clip)  # fit into 256 linear quantization
-        wq = wq / 65536.0 * (max_rng - min_rng)  # back to quantized real number, not integer
-        wclip = K.clip(w, min_rng, max_rng)  # linear value w/ clipping
-        out= wclip + K.stop_gradient(wq - wclip)
-        return 0.01 * tf.math.reduce_sum(tf.math.abs(out))
-    def get_config(self):
-        return {}
-
-#def cust_loss(y_true, y_pred):
-#        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=y_pred))
 
 class Keras_nn_loss(tf.keras.losses.Loss):
         def call(self, y_true, y_pred):
@@ -225,7 +203,3 @@ class CastToFloat32(preprocessing.PreprocessingLayer):
             return tf.strings.to_number(inputs, tf.float32)
         return tf.cast(inputs, tf.float32)
 
-class TeraGhata(tf.keras.losses.Loss):
-
-    def call(self, y_true, y_pred):
-        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_pred, labels=y_true))
