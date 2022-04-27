@@ -1,5 +1,6 @@
 import sys
 import os
+import math
 
 from tensorflow.keras.layers import Conv2D, BatchNormalization, ReLU, Lambda, Dropout, Flatten, Dense
 from tensorflow.keras import Model, Input
@@ -38,18 +39,11 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 import autokeras as ak
 import math
+from glob import glob 
 
 import binary_ops
 from binary_ops import *
 import argparse
-
-
-
-
-
-
-
-
 
 class MyConstraints(tf.keras.constraints.Constraint): ##Used for 8-bit weight quantization is Keras
     def __init__(self,name="", **kwargs):
@@ -209,14 +203,14 @@ class LatticeConvBlock(block_module.Block):
                         output_node = conv1(
                             kernel_size=kernel_size,
                             padding="same",depthwise_initializer=TruncatedNormal(stddev=0.01,seed=99),
-                            activation=None,use_bias=False,depthwise_constraint=MyConstraints("depthwise"+str(i)+str(j)),
+                            activation=None,use_bias=False,depthwise_constraint=MyConstraints("depthwise"+str(i)+str(j)),name="conv_DW_"+str(i)+"_"+str(j)
                         )(output_node)
                     else:
                         print("no quant in kernel")
                         output_node = conv1(
                         kernel_size=kernel_size,
-                        padding="same",depthwise_initializer=TruncatedNormal(stddev=0.01,seed=99),
-                        activation=None,use_bias=False,
+                        padding="same",depthwise_initializer=TruncatedNormal(stddev=0.01,seed=99),\
+                                activation=None,use_bias=False,name="conv_DW_"+str(i)+"_"+str(j)
                     )(output_node)
                     if use_batchnorm:
                         output_node = tf.keras.layers.BatchNormalization(axis=-1,momentum=0.9, epsilon=1e-6, fused=False)(output_node)
@@ -230,8 +224,8 @@ class LatticeConvBlock(block_module.Block):
                         utils.add_to_hp(
                             self.filters, hp, "filters_{i}_{j}".format(i=i, j=j)
                         ),
-                        normal_conv_kernel,padding="same",kernel_initializer=TruncatedNormal(stddev=0.01,seed=99),
-                        activation=None,use_bias=False,kernel_constraint=MyConstraints("pointwise"+str(i)+str(j)),
+                        normal_conv_kernel,padding="same",kernel_initializer=TruncatedNormal(stddev=0.01,seed=99),\
+                                activation=None,use_bias=False,kernel_constraint=MyConstraints("pointwise"+str(i)+str(j)),name="conv_PW_"+str(i)+"_"+str(j)
                     )(output_node)
                 else:
                     print('NO QUANTIZATION IN KERNEL')
@@ -239,8 +233,8 @@ class LatticeConvBlock(block_module.Block):
                     utils.add_to_hp(
                         self.filters, hp, "filters_{i}_{j}".format(i=i, j=j)
                     ),
-                    normal_conv_kernel, padding="same",kernel_initializer=TruncatedNormal(stddev=0.01,seed=99),
-                    activation=None,use_bias=False,
+                    normal_conv_kernel, padding="same",kernel_initializer=TruncatedNormal(stddev=0.01,seed=99),\
+                            activation=None,use_bias=False,name="conv_PW_"+str(i)+"_"+str(j)
                 )(output_node)
                 if use_batchnorm:
                     output_node = tf.keras.layers.BatchNormalization(axis=-1,momentum=0.9, epsilon=1e-6, fused=False)(output_node)
@@ -360,13 +354,11 @@ class LatClassificationHead(head_module.Head):
         if dropout > 0:
             output_node = layers.Dropout(dropout)(output_node)
         if self.kernel_quant:
-            print("The value of L2 regularizer is {}".format(L2_value))
-            output_node = layers.Dense(self.shape[-1],kernel_constraint=MyConstraints("Dense"),activity_regularizer=tf.keras.regularizers.L2(l2=L2_value), #My_FC_Regularizer(),
+            output_node = layers.Dense(self.shape[-1],kernel_constraint=MyConstraints("Dense"),
                     kernel_initializer=tf.keras.initializers.GlorotNormal(seed=99),bias_initializer="zeros",use_bias=True)(output_node)
         else:
             print('NO QUANTIZATION IN KERNEL')
-            output_node = layers.Dense(self.shape[-1], kernel_initializer=tf.keras.initializers.GlorotNormal(seed=99),bias_initializer="zeros",\
-                    use_bias=True,activity_regularizer=tf.keras.regularizers.L2(l2=L2_value))(output_node)
+            output_node = layers.Dense(self.shape[-1], kernel_initializer=tf.keras.initializers.GlorotNormal(seed=99),bias_initializer="zeros",use_bias=True)(output_node)
 
         if isinstance(self.loss, tf.keras.losses.BinaryCrossentropy):
             output_node = layers.Activation(activations.sigmoid, name=self.name)(
@@ -443,134 +435,58 @@ class LatClassificationHead(head_module.Head):
 
 
 def train() :
-    if not train_and_val_separate :
-        print("Train and validation data is not given explicitly. The given data will be split in 80-20")
-        image_gen_train = ImageDataGenerator(
-              rescale=1./128,
-              validation_split=0.2)
+    print("Separate train and validation folder is provided. No further split will be performed on train data")
 
-        train_data_gen = image_gen_train.flow_from_directory(batch_size=BATCH_SIZE,
-                                                             directory=train_dir,
-                                                             shuffle=True,
-                                                             color_mode=color_mode,
-                                                             target_size=(IMG_SHAPE,IMG_SHAPE),
-                                                             classes=CLASS_NAMES,
-                                                             subset='training',
-                                                             seed=99
-                                                             )
-        validation_generator = image_gen_train.flow_from_directory(batch_size=BATCH_SIZE,
-                                                             directory=train_dir,
-                                                             shuffle=True,
-                                                             color_mode=color_mode,
-                                                             target_size=(IMG_SHAPE,IMG_SHAPE),
-                                                             subset='validation',
-                                                             classes=CLASS_NAMES,
-                                                             seed=99
-                                                             )
+    train_data_1 = ak.image_dataset_from_directory(
+                                                 directory=train_dir,
+                            # Set seed to ensure the same split when loading testing data.
+                                seed=99,
+                                color_mode="grayscale",
+                                image_size=(32, 32),
+                                batch_size=BATCH_SIZE)
 
-    else:
-        print("Separate train and validation folder is provided. No further split will be performed on train data")
-        image_gen_train = ImageDataGenerator(rescale=1./128)
-        image_gen_val = ImageDataGenerator(rescale=1. / 128)
-        train_data_gen = image_gen_train.flow_from_directory(batch_size=BATCH_SIZE,
-                                                             directory=train_dir,
-                                                             shuffle=True,
-                                                             color_mode=color_mode,
-                                                             target_size=(IMG_SHAPE, IMG_SHAPE),
-                                                             classes=CLASS_NAMES,
-                                                             seed=99)
-        validation_generator = image_gen_val.flow_from_directory(batch_size=BATCH_SIZE,
-                                                                   directory=val_dir,
-                                                                   shuffle=True,
-                                                                   color_mode=color_mode,
-                                                                   target_size=(IMG_SHAPE, IMG_SHAPE),
-                                                                   classes=CLASS_NAMES,
-                                                                   seed=99)
+    test_data_1 = ak.image_dataset_from_directory(
+                            directory=val_dir,
+                            seed=99,
+                            color_mode="grayscale",
+                            image_size=(32,32),
+                            batch_size=BATCH_SIZE)
 
-
-    print(len(train_data_gen.labels))
-    class_dict=train_data_gen.class_indices
-
-    for key,value in class_dict.items():
-        print('key: ' + str(key) + ' Value: '+ str(value))
-
-
-    X_train, y_train = next(train_data_gen)
-    X_val, y_val = next(validation_generator)
-    print(train_data_gen.samples)
-    print(validation_generator.samples)
-    print(X_train.shape,X_val.shape)
-    print(y_train.shape,y_val.shape)
-    print(np.sum(y_val),np.sum(y_train))
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate =0.1,decay_steps=20000, decay_rate=0.8,staircase=True)
+    lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay( boundaries=[lt1,lt2,lt3,lt4], values=[0.1,0.01,0.001,0.0001,0.00001])
     cust_opt = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
 
     kwargs = {"optimizer":cust_opt,"metrics":["accuracy"]}
     input_node = ak.Input(shape=(IMG_SHAPE,IMG_SHAPE,input_channels), name="img")
-    output_node1 = LatticeConvBlock(separable=separable, use_batchnorm=use_batchnorm,quantrelu=quantrelu,kernel_quant=kernel_quant,img_size=IMG_SHAPE)(input_node)
+    output_node1 = LatticeConvBlock(separable=separable, use_batchnorm=use_batchnorm,quantrelu=quantrelu,kernel_quant=kernel_quant,img_size=IMG_SHAPE)(input_node)#(mid_node)
     output_node2 = LatClassificationHead(kernel_quant=kernel_quant,dropout=dropout)(output_node1)
     auto_model = ak.AutoModel(inputs=input_node, outputs=output_node2, overwrite=True, max_trials=max_trials,tuner=tuner,\
             seed=99, max_model_size=max_model_size,objective="val_loss",**kwargs)
+    
 
     # Search
-    auto_model.fit(X_train, y_train, epochs=epochs,validation_data=(X_val,y_val),verbose=2,callbacks=[mckpt,mckpt1])
-    predicted_y = auto_model.predict(X_val,verbose=2)
-    #print("PREDICTED OUTPUT IS : ")
-    #print(predicted_y)
-    ### Evaluate the best model with testing data.
-
-    cust_obj1 = { "bo": binary_ops,"binary_ops": binary_ops,"lin_8b_quant": lin_8b_quant,\
-                                                                    "FixedDropout" : FixedDropout,\
-                                                                   "MyInitializer": MyInitializer,\
-                                                                   "MyRegularizer": MyRegularizer,\
-                                                                   "MyConstraints": MyConstraints}
-    cust_obj2 = ak.CUSTOM_OBJECTS
-    CUSTOM_OBJECTS = {**cust_obj1,**cust_obj2}
-    ### The callback model is where we test the the accuracy of validation data because AK model auto_model gives the model with the
-    ### weights trained at the last step (which is not the best one). So use ckpt_model_1
-    net_model = tf.keras.models.load_model(ckpt_model_1 ,custom_objects=CUSTOM_OBJECTS)
-
-    net_model_loss_tr, net_model_acc_tr = net_model.evaluate(X_train, y_train)
-    print("Best trained model has training loss and accuracy of : ")
-    print(net_model_loss_tr, net_model_acc_tr)
-
-    net_model_loss, net_model_acc = net_model.evaluate(X_val,y_val)
-    print("Result on Validation dataset :")
-    print(net_model_loss, net_model_acc)
-
-    net_model.save(model_dir+"callback__model_loss_{}_acc_{}.h5".format(net_model_loss, net_model_acc))
+    auto_model.fit(x=train_data_1,epochs=epochs,verbose=1,validation_data=test_data_1,callbacks=[mckpt1])
+    auto_model_test_loss, auto_model_test_acc = auto_model.evaluate(test_data_1,verbose=2)
+    print("auto model loss and acc eval : {},{} ".format(auto_model_test_loss, auto_model_test_acc))
+    best_model = auto_model.export_model()
     fc_index = 0
     for i in range(-10,0,1):
         #print(i,net_model.get_layer(index=i).name)
-        if net_model.get_layer(index=i).name=="dense":
+        if best_model.get_layer(index=i).name=="dense":
             #print(net_model.get_layer(index=i))
             fc_index = i
             print("Found the dense layer index {}".format(fc_index))
     if fc_index==0:
         print("No dense layer index found. Please check the name of the dense layer in this script")
-    intermediate_model = tf.keras.Model(net_model.input,net_model.get_layer(index=fc_index).output)
-
-    temp0 = intermediate_model.predict(X_train)
-    print("train min max values at FC layer:")
-    print(np.amin(temp0), np.amax(temp0))
-    temp1 = intermediate_model.predict(X_val)
-    print("Val min and max at FC layer :")
-    print(np.amin(temp1),np.amax(temp1))
-
-    print(net_model.summary())
-
-    print("Keras model callback_model_loss_{}_acc_{}.h5 model in {} directory is the final model".format(net_model_loss, net_model_acc,model_dir))
-    #print("MODEL CONFIG : ")
-    #print(net_model.get_config())
-    print("\n")
-    print("\n")
-
-    print(net_model.loss, net_model.optimizer)
-    print(tf.keras.backend.eval(net_model.optimizer.lr))
+    intermediate_model = tf.keras.Model(best_model.input,best_model.get_layer(index=fc_index).output)
+    intermediate_model.save("./intrm_model_loss_{}_acc_{}.h5".format(auto_model_test_loss, auto_model_test_acc),save_format="h5")
+    best_model.save("./best_model.h5",save_format="h5")
+    print(best_model.summary())
+    print("Please note that with image_dataset_from_directory of AutoKeras, the order of classes will be [1,10,11,2,3,4,5,6,7,8,9] instead of [1,2,3,4,5,6,7,8,9,10,11]")
     return
 
 
 
+#---------------------------------------------------------------------------------
 if __name__=="__main__":    
     parser = argparse.ArgumentParser(description='Train auto Keras model.') 
     parser.add_argument("--dataset_path", required=True, type=str, help="classification dataset path")
@@ -585,6 +501,14 @@ if __name__=="__main__":
     train_and_val_separate = False  # Make it true if there are 2 separate dataset folders for train and validation
     #handgesture = False  # for landmark model make it False
     #if handgesture:
+    # Provide total train images to calculate limits for Optimizer in piecewise constant
+    if args.dataset_path[-1]=='/':
+        total_train_images = len(glob(args.dataset_path+"**/**"))
+    else:
+        total_train_images = len(glob(args.dataset_path+"/**/**"))
+        
+    
+
     data_dir = args.dataset_path
     train_dir = data_dir
     val_dir=data_dir
@@ -599,17 +523,30 @@ if __name__=="__main__":
     CLASS_NAMES = None #class names to be used in this order.
    
 
-    BATCH_SIZE = 50000 # batch size of images to be pre-processed in train and/or val dataset. Keep it at a value > #total images
+    BATCH_SIZE = 32 # batch size of images to be pre-processed in train and/or val dataset. Keep it at a value > #total images
     # The actual batch size will be inside fit method. Defaulted to 32
     epochs = args.epochs
     max_trials = 75 # Max number of architectures to be tried by AK to train the best one
     max_model_size=1600000 # To limit the model size
     dropout = 0.8 # Dropout rate
 
-    separable = True # True for Mobilenet like model
+    separable = False # True for Mobilenet like model
     use_batchnorm = True
     kernel_quant = True # whether to use kernel quantization -0.5<=W<0.5
     quantrelu = True # Whether to provide activation quantization
+    
+    
+    steps_per_epoch = math.ceil(total_train_images/BATCH_SIZE)
+    total_steps = math.ceil(steps_per_epoch*epochs)
+    lt1 = math.ceil(0.65*total_steps)
+    lt2 = math.ceil(0.85*total_steps)
+    lt3 = math.ceil(0.95*total_steps)
+    lt4 = total_steps
+    print("steps per epoch {}".format(steps_per_epoch))
+    print("total steps {}".format(total_steps))
+    print("four limits for SGD are {} , {} , {} and {}".format(lt1,lt2,lt3,lt4))
+    print("four limits for SGD are in epochs {} , {} , {} and {}".format(lt1//steps_per_epoch,lt2//steps_per_epoch,lt3//steps_per_epoch,lt4//steps_per_epoch))
+
 
     tuner = "hyperband" # Optimizer used by AK to find the best set of hyperparameters
     model_dir = args.logdir+"/models"+"/" # directory where models will be stored
@@ -618,13 +555,14 @@ if __name__=="__main__":
     ckpt_model_1 = model_dir+"ckpt_files/" # Similar to ckpt_model and this will be used as the final model
 
 
+    #---------------------------------------------------------------------------------
     # This ckpt will show us at what epoch, what val_accuracy the model was saved
     mckpt = tf.keras.callbacks.ModelCheckpoint(
-        filepath=ckpt_model, monitor='val_loss', verbose=2, save_best_only=True,
+        filepath=ckpt_model, monitor='val_loss', verbose=1, save_best_only=True,
         save_weights_only=False, mode='min', save_freq='epoch')
     # This ckpt saves the best model but without any epoch or accuracy information
     mckpt1 = tf.keras.callbacks.ModelCheckpoint(
-        filepath=ckpt_model_1, monitor='val_loss', verbose=2, save_best_only=True,
+        filepath=ckpt_model_1, monitor='val_loss', verbose=1, save_best_only=True,
         save_weights_only=False, mode='min', save_freq='epoch')
 
     # Train the model
